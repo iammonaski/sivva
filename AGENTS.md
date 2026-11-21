@@ -34,10 +34,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | Layer | Choice | Notes |
 |---|---|---|
 | App / frontend / server | **Next.js 16 App Router + TypeScript** | Single full-stack application. No separate Express or microservices. |
-| UI & styling | **Tailwind CSS v4 + shadcn/ui** | Use the design system tokens in `design/sivva-design-system.png`. |
+| UI & styling | **Tailwind CSS v4 + shadcn/ui + Phosphor Icons** | Use the design system tokens in `design/sivva-design-system.png` and `@phosphor-icons/react`. |
 | API / client-server | **tRPC + TanStack React Query** | Typed mutations/queries. No hand-maintained API types. |
-| Auth | **Better Auth** | Integrated with PostgreSQL/Drizzle. |
-| Database | **PostgreSQL + Drizzle ORM** | Migrations live in `drizzle/`. Schema in `src/lib/db/schema/`. |
+| Auth | **Better Auth (Email + Google Sign In)** | Integrated with PostgreSQL/Drizzle. |
+| Database | **PostgreSQL (Docker local / Neon) + Drizzle ORM** | Migrations live in `drizzle/`. Schema in `src/lib/db/schema/`. |
 | File storage | **Cloudinary** (private/access-controlled) | Store metadata + storage IDs in DB; never raw URLs in state. |
 | AI | **Gemini API** | Analysis, summaries, topic extraction, grounded Q&A. Server-side only. |
 | Retrieval | **PostgreSQL** (pgvector when needed) | Start simple; upgrade only if retrieval quality demands it. |
@@ -264,6 +264,16 @@ Dashboard · Library · Study Workspace · Analytics · Settings
 
 ## 8. Code conventions
 
+- **Development philosophy**:
+  - Prefer the smallest change that completely solves the problem. Don't add abstractions, config or extension points for hypothetical needs, and generalize only after repeated concrete requirements justify it.
+  - Before adding a dependency or utility, check whether the project already has one.
+  - Prefer a single object argument over three or more positional arguments, so same-typed values can't get swapped.
+  - Framework best practices are defaults, and they don't justify extra complexity unless they improve correctness, maintainability or consistency.
+  - Use your questions tool for every question, in every harness.
+  - When you integrate an API into a frontend, show a skeleton while data loads and not a "Loading..." string. This would be an absolute rule if not for a few rare cases where plain text really is the right answer, so wherever a skeleton can fit, use one.
+  - Mocks are enemies of the codebase. Once I give you an endpoint to replace a mocked one, remove every mock for that endpoint, everywhere it appears, because API integration means all data is live. If a codebase truly does need mocks or fallbacks, keep all of them in one dedicated top-level folder and never scatter pieces through components and files, so I can find, change and clean them up in one place.
+  - kebab-case for general files, PascalCase ONLY component files.
+  - Do not randomly run lint, typecheck or build. Run only when VERY necessary.
 - **TypeScript strict mode** — no `any` without a comment explaining why.
 - **Zod everywhere** — validate at the boundary (tRPC input, AI output, env vars).
 - **Environment variables** — declare and validate in `src/lib/env.ts`; never read `process.env` directly elsewhere.
@@ -272,25 +282,9 @@ Dashboard · Library · Study Workspace · Analytics · Settings
 - **Streaming** — use Route Handlers + `ReadableStream` for streaming AI responses; do not block tRPC procedures.
 - **No barrel re-exports** unless the module is a true public API boundary.
 
----
-
-## 9. Phase 1 checklist (current milestone)
-
-- [ ] Next.js foundation, env configuration, basic UI shell
-- [ ] PostgreSQL, Drizzle, migrations, Better Auth
-- [ ] tRPC context, base procedures, auth middleware, root router
-- [ ] Private, user-owned materials with server-side ownership checks
-- [ ] Upload + private Cloudinary file-storage flow
-- [ ] Text extraction with page references (PDF + DOCX)
-- [ ] Topic/section extraction with validated structured output
-- [ ] Overview, summaries, glossary, and key concepts generation
-- [ ] Grounded Q&A with citations; streaming via Route Handler
-- [ ] Study workspace + mobile-responsive layout
-- [ ] Test with real course notes (varied lengths and formats)
-- [ ] Deploy for personal and coursemate testing; collect feedback before Phase 2
 
 ---
 
-## 10. Definition of done (Phase 1)
+## 9. Definition of done (Phase 1)
 
 > A coursemate can upload a lecture document, understand its main topics and concepts from the generated study guide, navigate to the relevant section, and ask follow-up questions with answers grounded in the document. It feels **reliable and simple** — not feature-heavy.
