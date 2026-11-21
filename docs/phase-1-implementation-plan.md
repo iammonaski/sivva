@@ -118,15 +118,18 @@ flowchart TD
 ---
 
 ### Stage 3: tRPC Transport & App Shell
-- [ ] **tRPC Infrastructure (`src/server/trpc/`)**:
+- [x] **tRPC Infrastructure (`src/server/trpc/`)**:
   - `context.ts`: Session resolution from Better Auth.
   - `init.ts`: Base procedure and error formatting.
   - `middleware.ts`: Authenticated guard (`protectedProcedure`).
   - `routers/_app.ts`: Root app router.
   - `create-caller.ts`: Server caller for Server Components.
-- [ ] **Client Integration**:
+- [x] **Client Integration**:
   - Provider in `src/lib/trpc/Provider.tsx` combining TanStack React Query and tRPC client.
   - Route handler `src/app/api/trpc/[trpc]/route.ts`.
+- [x] **App Shell & Feature Pages**:
+  - Authenticated layout with responsive sidebar in `src/components/layout/sidebar.tsx`.
+  - Dashboard (`/dashboard`), Library (`/library`), and Settings (`/settings`) pages with skeleton loaders for all async states.
 
 ---
 

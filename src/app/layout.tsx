@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { TRPCProvider } from "@/lib/trpc/Provider";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -11,7 +12,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "Sivva — AI Study Companion",
-  description: "Learn smarter. Study better. Upload lecture notes, understand content, and practice.",
+  description:
+    "Learn smarter. Study better. Upload lecture notes, understand content, and practice.",
 };
 
 export default function RootLayout({
@@ -22,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${plusJakartaSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
-        {children}
+        <TRPCProvider>{children}</TRPCProvider>
       </body>
     </html>
   );

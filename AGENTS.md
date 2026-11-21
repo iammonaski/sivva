@@ -272,7 +272,7 @@ Dashboard · Library · Study Workspace · Analytics · Settings
   - Use your questions tool for every question, in every harness.
   - When you integrate an API into a frontend, show a skeleton while data loads and not a "Loading..." string. This would be an absolute rule if not for a few rare cases where plain text really is the right answer, so wherever a skeleton can fit, use one.
   - Mocks are enemies of the codebase. Once I give you an endpoint to replace a mocked one, remove every mock for that endpoint, everywhere it appears, because API integration means all data is live. If a codebase truly does need mocks or fallbacks, keep all of them in one dedicated top-level folder and never scatter pieces through components and files, so I can find, change and clean them up in one place.
-  - kebab-case for general files, PascalCase ONLY component files.
+  - kebab-case for all files, including UI components (e.g. `src/components/ui/button.tsx`, `skeleton.tsx`, `input.tsx`). Do not duplicate component files with PascalCase names; use only a single lowercase/kebab-case file per component.
   - Do not randomly run lint, typecheck or build. Run only when VERY necessary.
 - **TypeScript strict mode** — no `any` without a comment explaining why.
 - **Zod everywhere** — validate at the boundary (tRPC input, AI output, env vars).

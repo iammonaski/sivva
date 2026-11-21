@@ -1,0 +1,133 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession, signOut } from "@/lib/auth/auth-client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  BookBookmark,
+  SquaresFour,
+  FolderSimple,
+  Gear,
+  SignOut,
+  User,
+} from "@phosphor-icons/react";
+
+const NAV_ITEMS = [
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: SquaresFour,
+  },
+  {
+    label: "Library",
+    href: "/library",
+    icon: FolderSimple,
+  },
+  {
+    label: "Settings",
+    href: "/settings",
+    icon: Gear,
+  },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
+  return (
+    <aside className="flex h-screen w-64 flex-col border-r border-border bg-surface">
+      {/* Brand Header */}
+      <div className="flex h-16 items-center gap-2.5 border-b border-border px-6">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-primary">
+          <BookBookmark size={20} weight="bold" />
+        </div>
+        <div className="flex flex-col">
+          <span className="font-semibold text-foreground tracking-tight">Sivva</span>
+          <span className="text-[11px] text-muted-foreground leading-none">
+            Study Companion
+          </span>
+        </div>
+      </div>
+
+      {/* Navigation Links */}
+      <nav className="flex-1 space-y-1 p-4">
+        {NAV_ITEMS.map((item) => {
+          const isActive = pathname === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-accent text-primary font-semibold"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Icon size={18} weight={isActive ? "fill" : "regular"} />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* User Section Footer */}
+      <div className="border-t border-border p-4">
+        {isPending ? (
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-9 rounded-full" />
+            <div className="space-y-1.5 flex-1">
+              <Skeleton className="h-3.5 w-24" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          </div>
+        ) : session?.user ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-primary font-medium text-xs">
+                {session.user.name ? (
+                  session.user.name.charAt(0).toUpperCase()
+                ) : (
+                  <User size={14} />
+                )}
+              </div>
+              <div className="truncate">
+                <p className="truncate text-xs font-medium text-foreground">
+                  {session.user.name || "Student"}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {session.user.email}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={handleSignOut}
+              title="Sign out"
+            >
+              <SignOut size={16} />
+            </Button>
+          </div>
+        ) : (
+          <Link href="/login" className="w-full">
+            <Button variant="outline" size="sm" className="w-full">
+              Sign In
+            </Button>
+          </Link>
+        )}
+      </div>
+    </aside>
+  );
+}
