@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -15,10 +16,14 @@ export default function Home() {
           concepts, and practice with an AI tutor grounded in your materials.
         </p>
         <div className="flex items-center gap-3 pt-2">
-          <Button size="lg">Get Started</Button>
-          <Button variant="outline" size="lg">
-            Documentation
-          </Button>
+          <Link href="/register">
+            <Button size="lg">Get Started</Button>
+          </Link>
+          <Link href="/login">
+            <Button variant="outline" size="lg">
+              Sign In
+            </Button>
+          </Link>
         </div>
       </main>
     </div>

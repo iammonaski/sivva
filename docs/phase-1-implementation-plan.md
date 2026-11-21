@@ -99,7 +99,7 @@ flowchart TD
 ---
 
 ### Stage 2: Database Schema & Authentication (Email + Google)
-- [ ] **Drizzle Schema (`src/lib/db/schema/`)**:
+- [x] **Drizzle Schema (`src/lib/db/schema/`)**:
   - `auth.ts`: Better Auth tables (user, session, account, verification) with Google provider support.
   - `materials.ts`: Material metadata, file type (`pdf`, `docx`), Cloudinary ID/URL, status (`pending`, `processing`, `ready`, `error`).
   - `documents.ts`: Raw extracted text, page count, material ID.
@@ -107,10 +107,10 @@ flowchart TD
   - `topics.ts`: Title, summary, order, material ID.
   - `study-guides.ts`: Overview markdown, key concepts (`[{term, definition}]`), key terms glossary (`string[]`).
   - `conversations.ts`: Material ID, User ID, messages (`[{role, content, citations}]`).
-- [ ] **Database Connection & Migrations**:
+- [x] **Database Connection & Migrations**:
   - Setup Drizzle client connecting to local Docker PostgreSQL.
-  - Run initial schema migration.
-- [ ] **Better Auth Setup (`src/lib/auth/auth.ts`, `auth-client.ts`)**:
+  - Initial schema migration generated in `drizzle/0000_bright_loki.sql`.
+- [x] **Better Auth Setup (`src/lib/auth/auth.ts`, `auth-client.ts`)**:
   - Server configuration with email/password and Google OAuth via Drizzle adapter.
   - Route handler `src/app/api/auth/[...all]/route.ts`.
   - Auth UI: `/login` and `/register` with Phosphor icons and design tokens.
