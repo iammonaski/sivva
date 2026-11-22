@@ -319,7 +319,7 @@ Standard Better Auth schema; do not define manually.
 | `fileType` | text | `pdf`, `docx` |
 | `storageId` | text | Cloudinary resource ID |
 | `storageUrl` | text | Private Cloudinary URL |
-| `status` | text | `pending`, `processing`, `ready`, `error` |
+| `status` | text | `pending`, `processing`, `extracted`, `analyzing`, `ready`, `error` |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
 
@@ -416,14 +416,16 @@ Standard Better Auth schema; do not define manually.
 
 ## 13. Phase 1 Checklist
 
-- [ ] Next.js foundation, env configuration, and basic UI shell
-- [ ] PostgreSQL, Drizzle, migrations, and Better Auth
-- [ ] tRPC context, base procedures, auth middleware, and root router
-- [ ] Private, user-owned materials with server-side ownership checks
-- [ ] Upload + private Cloudinary file-storage flow
-- [ ] Text extraction with page references (PDF + DOCX)
-- [ ] Topic/section extraction with validated structured output
-- [ ] Overview, summaries, glossary, and key concepts generation
+**Status (2026-11-22):** implementation Stages 1–5 are merged. Next is Stage 6: grounded Q&A, retrieval, and streaming. The basic workspace displays live overview/topics/study-guide sections; the full tabbed workspace remains Stage 7. Automated verification covers 105 unit tests and 32 PostgreSQL/HTTP/tRPC integration tests, with TypeScript passing. Live Gemini/Cloudinary verification and testing with real course notes remain outstanding.
+
+- [x] Next.js foundation, env configuration, and basic UI shell
+- [x] PostgreSQL, Drizzle, migrations, and Better Auth
+- [x] tRPC context, base procedures, auth middleware, and root router
+- [x] Private, user-owned materials with server-side ownership checks
+- [x] Upload + private Cloudinary file-storage flow
+- [x] Text extraction with page references (PDF + DOCX headings; no fabricated DOCX page numbers)
+- [x] Topic/section extraction with validated structured output
+- [x] Overview, summaries, glossary, and key concepts generation
 - [ ] Grounded Q&A with citations; streaming via Route Handler
 - [ ] Study workspace + mobile-responsive layout
 - [ ] Test with real course notes (varied lengths and formats)
