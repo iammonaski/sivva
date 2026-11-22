@@ -4,17 +4,17 @@ import * as React from "react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { UploadDocument } from "@/features/materials/components/upload-document";
 import {
-  FileText,
-  UploadSimple,
   Clock,
   ArrowRight,
   FolderSimple,
 } from "@phosphor-icons/react";
 
 export default function LibraryPage() {
-  const { data: materials, isLoading } = trpc.material.list.useQuery();
+  const { data: materials, isLoading, error } = trpc.material.list.useQuery(undefined, {
+    refetchInterval: (query) => query.state.data?.some((material) => ["pending", "processing"].includes(material.status)) ? 2000 : false,
+  });
 
   return (
     <div className="space-y-8">
@@ -28,14 +28,11 @@ export default function LibraryPage() {
             Manage your uploaded documents, lecture notes, and study workspaces.
           </p>
         </div>
-        <Button className="gap-2">
-          <UploadSimple size={16} weight="bold" />
-          Upload Document
-        </Button>
+        <UploadDocument />
       </div>
 
       {/* Materials List */}
-      {isLoading ? (
+      {error ? <p role="alert" className="text-sm text-destructive">{error.message}</p> : isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Skeleton className="h-44 rounded-xl" />
           <Skeleton className="h-44 rounded-xl" />
@@ -56,7 +53,7 @@ export default function LibraryPage() {
                   </span>
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                      material.status === "ready"
+                      ["ready", "extracted"].includes(material.status)
                         ? "bg-accent text-primary"
                         : material.status === "processing"
                         ? "bg-amber-100 text-amber-800"
@@ -101,10 +98,7 @@ export default function LibraryPage() {
             Upload PDF or DOCX lecture materials to extract concepts, create
             study guides, and interact with an AI tutor.
           </p>
-          <Button className="mt-5 gap-2">
-            <UploadSimple size={16} weight="bold" />
-            Upload Document
-          </Button>
+          <UploadDocument className="mt-5" />
         </div>
       )}
     </div>
