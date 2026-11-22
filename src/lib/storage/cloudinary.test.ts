@@ -5,10 +5,17 @@ import { uploadOriginal, deleteOriginal, getSignedOriginalUrl } from "./cloudina
 afterEach(() => vi.restoreAllMocks());
 
 describe("private Cloudinary originals", () => {
-  it("uploads raw authenticated assets without filenames or public URLs", async () => {
+  it("uploads authenticated originals into the app folder without changing storage IDs", async () => {
     const upload = mockCloudinaryUpload();
     expect(await uploadOriginal({ buffer: Buffer.from("test"), storageId: "materials/test.pdf" })).toEqual({ storageId: "materials/test.pdf" });
-    expect(upload.mock.calls[0][0]).toMatchObject({ public_id: "materials/test.pdf", resource_type: "raw", type: "authenticated", overwrite: false });
+    expect(upload.mock.calls[0][0]).toMatchObject({
+      public_id: "materials/test.pdf",
+      asset_folder: "sivva/materials",
+      use_asset_folder_as_public_id_prefix: false,
+      resource_type: "raw",
+      type: "authenticated",
+      overwrite: false,
+    });
   });
 
   it("wraps upload failures and rejects invalid provider responses", async () => {
