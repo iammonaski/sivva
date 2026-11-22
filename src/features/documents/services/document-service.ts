@@ -48,7 +48,7 @@ export async function processDocument({
           pageNumber: chunk.pageNumber, sectionHeading: chunk.sectionHeading, tokenCount: chunk.tokenCount,
         })));
       }
-      // Stage 5 will run analysis and advance extracted -> ready.
+      // Analysis runs separately after the extraction transaction commits.
       await tx.update(materials).set({ status: "extracted", errorMessage: null, updatedAt: new Date() }).where(ownedProcessing);
     });
   } catch (cause) {

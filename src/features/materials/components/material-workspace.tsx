@@ -6,6 +6,7 @@ import { ArrowLeft, DownloadSimple, Trash } from "@phosphor-icons/react";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DocumentAnalysis } from "@/features/analysis/components/document-analysis";
 
 export function MaterialWorkspace({ materialId }: { materialId: string }) {
   const router = useRouter();
@@ -15,7 +16,7 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
     { id: materialId },
     {
       refetchInterval: (query) =>
-        ["pending", "processing"].includes(
+        ["pending", "processing", "extracted", "analyzing"].includes(
           query.state.data?.status ?? "processing",
         )
           ? 2000
@@ -48,7 +49,9 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
       </div>
     );
   const currentStatus = status.data?.status ?? material.data.status;
-  const processing = ["pending", "processing"].includes(currentStatus);
+  const processing = ["pending", "processing", "extracted", "analyzing"].includes(
+    currentStatus,
+  );
   const error = status.data?.errorMessage ?? material.data.errorMessage;
 
   return (
@@ -108,7 +111,9 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
         >
           <h2 className="text-lg font-medium">Preparing your document</h2>
           <p className="text-sm text-muted-foreground">
-            Extracting readable text and preserving source sections.
+            {["extracted", "analyzing"].includes(currentStatus)
+              ? "Generating your overview, topics, and study guide."
+              : "Extracting readable text and preserving source sections."}
           </p>
           <Skeleton className="h-6 w-2/3" />
           <Skeleton className="h-24 w-full" />
@@ -125,17 +130,9 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
             {error ?? "Please delete the document and upload again."}
           </p>
         </section>
-      ) : (
-        <section className="rounded-xl border border-border bg-surface p-6">
-          <h2 className="text-lg font-medium text-primary">
-            Document text extracted
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your original is stored privately, and source-aware text chunks are
-            saved. AI analysis and study guides will be added in Stage 5.
-          </p>
-        </section>
-      )}
+      ) : currentStatus === "ready" ? (
+        <DocumentAnalysis key={materialId} materialId={materialId} />
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,11 @@
 import { transport } from "../../../../mocks/transport";
+import { gemini, resetGemini } from "../../../../mocks/gemini";
+import { createAnalysis } from "../../../../mocks/analysis-fixtures";
+import { createCallerContext } from "../../../../mocks/trpc-context";
+import { analyzeDocument, getOverview, getStudyGuide, getTopics } from "@/features/analysis/services/analysis-service";
+import { AnalysisError } from "@/features/analysis/analysis-error";
+import { analysisRouter } from "@/server/trpc/routers/analysis.router";
+import { getDashboardStats } from "@/features/dashboard/services/dashboard.service";
 import { storage } from "../../../../mocks/storage";
 import { POST } from "@/app/api/materials/upload/route";
 import { GET } from "@/app/api/materials/[materialId]/file/route";
@@ -9,7 +16,7 @@ import { readFile } from "node:fs/promises";
 import pg from "pg";
 import { and, eq, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
-import { chunks, documents, materials, user } from "@/lib/db/schema";
+import { chunks, documents, materials, studyGuides, topics, user } from "@/lib/db/schema";
 import { createMaterial, deleteMaterial, getMaterialById, getMaterialDownloadUrl, getMaterialStatus, listUserMaterials } from "./material.service";
 import { processDocument } from "@/features/documents/services/document-service";
 import { MaterialError } from "../material-error";
@@ -39,6 +46,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  resetGemini();
   await db.delete(materials);
 });
 
@@ -67,7 +75,9 @@ describe("upload and original-file HTTP handlers", () => {
     expect(await db.select().from(documents)).toEqual([]);
     expect(transport.after).toHaveBeenCalledTimes(1);
     await transport.after.mock.calls[0][0]();
-    expect((await getMaterialStatus({ id: data.materialId, userId: owner })).status).toBe("extracted");
+    expect((await getMaterialStatus({ id: data.materialId, userId: owner })).status).toBe("ready");
+    expect(gemini.generateDocumentAnalysis).toHaveBeenCalledWith({ rawText: "HTTP upload" });
+    expect(await db.select().from(studyGuides)).toHaveLength(1);
     const original = await GET(new Request("http://localhost:3000/file"), { params: Promise.resolve({ materialId: data.materialId }) });
     expect(original.status).toBe(302);
     expect(original.headers.get("cache-control")).toBe("private, no-store");
@@ -202,5 +212,189 @@ describe("document ingestion with real PostgreSQL and parsers", () => {
     await Promise.all([processUpload(created), processUpload(created)]);
     expect(await db.select().from(documents)).toHaveLength(1);
     expect(await db.select().from(chunks)).toHaveLength(2);
+  });
+});
+
+async function extractedMaterial() {
+  const created = await uploadPdf();
+  await processUpload(created);
+  return { id: created.materialId, userId: owner };
+}
+
+describe("AI analysis with real PostgreSQL", () => {
+  it("atomically persists ordered topics and guide, clears errors, and advances extracted to ready", async () => {
+    const input = await extractedMaterial();
+    await db.update(materials).set({ errorMessage: "stale message" }).where(eq(materials.id, input.id));
+    expect((await getMaterialStatus(input)).status).toBe("extracted");
+    await analyzeDocument(input);
+    expect(await getMaterialStatus(input)).toMatchObject({ status: "ready", errorMessage: null });
+    expect(await getOverview(input)).toEqual({ overview: createAnalysis().studyGuide.overview });
+    expect(await getStudyGuide(input)).toEqual(createAnalysis().studyGuide);
+    expect((await getTopics(input)).map(({ title, summary, order }) => ({ title, summary, order })))
+      .toEqual(createAnalysis().topics.map((topic, order) => ({ ...topic, order })));
+    expect(gemini.generateDocumentAnalysis).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns empty analysis while waiting and never calls AI before extraction", async () => {
+    const created = await uploadPdf();
+    const input = { id: created.materialId, userId: owner };
+    await analyzeDocument(input);
+    expect(gemini.generateDocumentAnalysis).not.toHaveBeenCalled();
+    expect(await getOverview(input)).toBeNull();
+    expect(await getStudyGuide(input)).toBeNull();
+    expect(await getTopics(input)).toEqual([]);
+  });
+
+  it("protects all service reads and generation against foreign/missing materials", async () => {
+    const input = await extractedMaterial();
+    for (const forbidden of [{ ...input, userId: other }, { id: "missing", userId: owner }]) {
+      await expect(getOverview(forbidden)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(getStudyGuide(forbidden)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(getTopics(forbidden)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await analyzeDocument(forbidden);
+    }
+    expect(gemini.generateDocumentAnalysis).not.toHaveBeenCalled();
+    expect((await getMaterialStatus(input)).status).toBe("extracted");
+  });
+
+  it("rejects invalid structured output at the service boundary without partial writes", async () => {
+    const input = await extractedMaterial();
+    gemini.generateDocumentAnalysis.mockResolvedValueOnce({ topics: [], studyGuide: createAnalysis().studyGuide });
+    await analyzeDocument(input);
+    expect(await getMaterialStatus(input)).toMatchObject({ status: "error", errorMessage: expect.stringContaining("invalid study guide") });
+    expect(await db.select().from(topics)).toEqual([]);
+    expect(await db.select().from(studyGuides)).toEqual([]);
+    expect(await db.select().from(documents)).toHaveLength(1);
+    expect(await db.select().from(chunks)).toHaveLength(2);
+  });
+
+  it.each(["PROVIDER_ERROR", "INVALID_OUTPUT", "INPUT_TOO_LARGE"] as const)("preserves extraction and records safe %s failures", async (code) => {
+    const input = await extractedMaterial();
+    gemini.generateDocumentAnalysis.mockRejectedValueOnce(new AnalysisError(code, "AI analysis failed. Try again later.", { cause: new Error("private document content") }));
+    await analyzeDocument(input);
+    expect(await getMaterialStatus(input)).toMatchObject({ status: "error", errorMessage: "AI analysis failed. Try again later." });
+    expect(await db.select().from(documents)).toHaveLength(1);
+    expect(await db.select().from(topics)).toEqual([]);
+    expect(await db.select().from(studyGuides)).toEqual([]);
+  });
+
+  it("rolls back replacement and ready state when guide persistence fails", async () => {
+    const input = await extractedMaterial();
+    // Existing rows must survive rollback, not just newly inserted topics.
+    await db.insert(topics).values({ materialId: input.id, title: "Old topic", summary: "Old summary", order: 0 });
+    await db.insert(studyGuides).values({ materialId: input.id, ...createAnalysis().studyGuide });
+    await pool.query("ALTER TABLE study_guides ADD CONSTRAINT test_reject_new_guides CHECK (false) NOT VALID");
+    try {
+      await analyzeDocument(input);
+      expect((await getMaterialStatus(input)).status).toBe("error");
+      expect((await db.select().from(topics)).map((topic) => topic.title)).toEqual(["Old topic"]);
+      expect(await db.select().from(studyGuides)).toHaveLength(1);
+      expect(await getStudyGuide(input)).toBeNull();
+    } finally { await pool.query("ALTER TABLE study_guides DROP CONSTRAINT test_reject_new_guides"); }
+  });
+
+  it("claims concurrent attempts once, exposes analyzing, and is idempotent after ready", async () => {
+    const input = await extractedMaterial();
+    let resolve!: (value: ReturnType<typeof createAnalysis>) => void;
+    let started!: () => void;
+    const entered = new Promise<void>((done) => { started = done; });
+    gemini.generateDocumentAnalysis.mockImplementationOnce(() => {
+      started();
+      return new Promise((done) => { resolve = done; });
+    });
+    const first = analyzeDocument(input);
+    await entered;
+    expect((await getMaterialStatus(input)).status).toBe("analyzing");
+    await analyzeDocument(input);
+    expect(gemini.generateDocumentAnalysis).toHaveBeenCalledTimes(1);
+    resolve(createAnalysis());
+    await first;
+    await analyzeDocument(input);
+    expect(gemini.generateDocumentAnalysis).toHaveBeenCalledTimes(1);
+    expect(await db.select().from(topics)).toHaveLength(2);
+    expect(await db.select().from(studyGuides)).toHaveLength(1);
+    expect((await getMaterialStatus(input)).status).toBe("ready");
+  });
+
+  it.each([false, true])("does not resurrect a material deleted during inference (failure=%s)", async (fails) => {
+    const input = await extractedMaterial();
+    let settle!: () => void;
+    let started!: () => void;
+    const entered = new Promise<void>((done) => { started = done; });
+    gemini.generateDocumentAnalysis.mockImplementationOnce(() => {
+      started();
+      return new Promise((resolve, reject) => {
+        settle = () => fails ? reject(new AnalysisError("PROVIDER_ERROR", "Provider failed.")) : resolve(createAnalysis());
+      });
+    });
+    const analysis = analyzeDocument(input);
+    await entered;
+    await deleteMaterial(input);
+    settle();
+    await analysis;
+    expect(await db.select().from(materials)).toEqual([]);
+    expect(await db.select().from(topics)).toEqual([]);
+    expect(await db.select().from(studyGuides)).toEqual([]);
+  });
+
+  it("does not let a late failure overwrite a ready state", async () => {
+    const input = await extractedMaterial();
+    gemini.generateDocumentAnalysis.mockImplementationOnce(async () => {
+      await db.update(materials).set({ status: "ready" }).where(eq(materials.id, input.id));
+      throw new AnalysisError("PROVIDER_ERROR", "Late error");
+    });
+    await analyzeDocument(input);
+    expect(await getMaterialStatus(input)).toMatchObject({ status: "ready", errorMessage: null });
+  });
+
+  it("cascades persisted analysis when its owner deletes the material", async () => {
+    const input = await extractedMaterial();
+    await analyzeDocument(input);
+    await deleteMaterial(input);
+    expect(await db.select().from(topics)).toEqual([]);
+    expect(await db.select().from(studyGuides)).toEqual([]);
+  });
+
+  it("only counts the requesting user's topics on the dashboard", async () => {
+    const input = await extractedMaterial();
+    await analyzeDocument(input);
+    const created = await uploadPdf();
+    await db.update(materials).set({ userId: other }).where(eq(materials.id, created.materialId));
+    await processUpload(created, other);
+    await analyzeDocument({ id: created.materialId, userId: other });
+    expect((await getDashboardStats({ userId: owner })).totalTopics).toBe(2);
+    expect((await getDashboardStats({ userId: other })).totalTopics).toBe(2);
+    expect((await getDashboardStats({ userId: "missing" })).totalTopics).toBe(0);
+  });
+});
+
+describe("ownership-protected analysis tRPC endpoints", () => {
+  it("returns live analysis through authenticated callers", async () => {
+    const input = await extractedMaterial();
+    await analyzeDocument(input);
+    const caller = analysisRouter.createCaller(createCallerContext(owner));
+    expect(await caller.getStudyGuide({ id: input.id })).toEqual(createAnalysis().studyGuide);
+    expect(await caller.getOverview({ id: input.id })).toEqual({ overview: createAnalysis().studyGuide.overview });
+    expect(await caller.getTopics({ id: input.id })).toHaveLength(2);
+  });
+  it("returns UNAUTHORIZED before any data access", async () => {
+    const caller = analysisRouter.createCaller(createCallerContext(null));
+    await expect(caller.getOverview({ id: "missing" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.getTopics({ id: "missing" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.getStudyGuide({ id: "missing" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+  it("maps missing and foreign materials to indistinguishable NOT_FOUND", async () => {
+    const input = await extractedMaterial();
+    const caller = analysisRouter.createCaller(createCallerContext(other));
+    for (const id of [input.id, "missing"]) {
+      await expect(caller.getOverview({ id })).rejects.toMatchObject({ code: "NOT_FOUND", message: "Material not found or access denied." });
+      await expect(caller.getTopics({ id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(caller.getStudyGuide({ id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+  });
+  it("validates inputs with Zod before database queries", async () => {
+    const caller = analysisRouter.createCaller(createCallerContext(owner));
+    await expect(caller.getOverview({ id: "" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller.getTopics({ id: "x".repeat(201) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

@@ -13,7 +13,7 @@ import {
 
 export default function LibraryPage() {
   const { data: materials, isLoading, error } = trpc.material.list.useQuery(undefined, {
-    refetchInterval: (query) => query.state.data?.some((material) => ["pending", "processing"].includes(material.status)) ? 2000 : false,
+    refetchInterval: (query) => query.state.data?.some((material) => ["pending", "processing", "extracted", "analyzing"].includes(material.status)) ? 2000 : false,
   });
 
   return (
@@ -53,9 +53,9 @@ export default function LibraryPage() {
                   </span>
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                      ["ready", "extracted"].includes(material.status)
+                      material.status === "ready"
                         ? "bg-accent text-primary"
-                        : material.status === "processing"
+                        : ["pending", "processing", "extracted", "analyzing"].includes(material.status)
                         ? "bg-amber-100 text-amber-800"
                         : material.status === "error"
                         ? "bg-red-100 text-red-800"

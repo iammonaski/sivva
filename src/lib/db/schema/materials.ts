@@ -15,7 +15,7 @@ export const materials = pgTable("materials", {
   fileSize: integer("file_size").notNull(),
   storageId: text("storage_id").notNull(), // Cloudinary public_id
   storageUrl: text("storage_url"),
-  status: text("status").notNull().default("pending"), // 'pending' | 'processing' | 'extracted' | 'ready' | 'error'
+  status: text("status").notNull().default("pending"), // 'pending' | 'processing' | 'extracted' | 'analyzing' | 'ready' | 'error'
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { createTRPCContext } from "@/server/trpc/context";
 import { createMaterial } from "@/features/materials/services/material.service";
-import { processDocument } from "@/features/documents/services/document-service";
+import { processMaterial } from "@/features/materials/services/process-material";
 import { uploadResponseSchema } from "@/features/materials/schemas/material";
 import { readUploadForm } from "@/features/materials/services/upload-validation";
 import { materialErrorResponse } from "@/server/material-error-response";
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     if (!session?.user) return Response.json({ error: "Sign in to upload documents." }, { status: 401 });
     const { file, title } = await readUploadForm(request);
     const created = await createMaterial({ userId: session.user.id, file, title });
-    after(() => processDocument({
+    after(() => processMaterial({
       materialId: created.materialId, userId: session.user.id, buffer: created.buffer, fileType: created.fileType,
     }));
     return Response.json(uploadResponseSchema.parse(created), { status: 202 });

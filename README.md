@@ -26,9 +26,25 @@ Sign in, open `/library`, and choose **Upload Document**. Supported files are PD
 
 Configure the Cloudinary variables in `.env` with real credentials. Originals use **raw, authenticated** Cloudinary storage; the database stores the public ID, not a delivery URL. New uploads are organized in the **`sivva/materials`** Media Library folder using Cloudinary's dynamic folder mode, independently of their storage IDs. No folder environment variable or upload preset is needed; existing uploads are not moved. `/api/materials/[materialId]/file` checks ownership and redirects to a 60-second signed download. PDFs/DOCX are never uploaded as public assets.
 
-Upload returns HTTP 202 after storage and metadata creation. Next.js `after()` extracts and atomically persists text and overlapping chunks. Status advances `processing → extracted` (or `error`); Stage 5 will add Gemini analysis and the final `ready` state. PDF chunks preserve actual page numbers; DOCX chunks cite headings and leave page numbers null. Chunk size is approximately 750 tokens with 100-token overlap (four Unicode characters/token estimate); short pages/sections remain short so citations never cross boundaries.
+Upload returns HTTP 202 after storage and metadata creation. Next.js `after()` runs a feature-service pipeline that extracts and atomically persists text/chunks, then generates and saves AI analysis. Status advances `processing → extracted → analyzing → ready` (or `error`). PDF chunks preserve actual page numbers; DOCX chunks cite headings and leave page numbers null. Chunk size is approximately 750 tokens with 100-token overlap (four Unicode characters/token estimate); short pages/sections remain short so citations never cross boundaries.
 
-This is in-process processing, not a durable queue: an interrupted server invocation can leave `processing` behind. Delete and re-upload an interrupted document. Upload latency still includes Cloudinary/network latency, so a sub-two-second response is not guaranteed. Deletion removes private storage and cascades database data; cloud deletion failures retain the record for retry.
+This is in-process processing, not a durable queue: an interrupted server invocation can leave `processing`, `extracted`, or `analyzing` behind. Delete and re-upload an interrupted document. Documents uploaded before Stage 5 that are already `extracted` also need re-uploading to run the complete pipeline. Upload latency still includes Cloudinary/network latency, so a sub-two-second response is not guaranteed. Deletion removes private storage and cascades database data; cloud deletion failures retain the record for retry.
+
+## AI analysis (Stage 5)
+
+Set `GEMINI_API_KEY` to a real server-side API key. The optional, validated `GEMINI_MODEL` defaults to the explicit stable ID **`gemini-3.5-flash-lite`**; choose another available Gemini model if your account requires it. No Gemini SDK is needed: the server uses `generateContent` REST with a JSON schema generated from Zod. Only extracted source text is sent to Gemini—no user IDs, original filenames, storage identifiers, or download URLs.
+
+The source-grounded prompt generates an overview, ordered topics, key concepts/definitions, and glossary key terms. All responses must finish successfully, parse as JSON, and pass strict Zod validation before persistence. Topics and the study guide are saved together with `ready` in one transaction. An atomic `analyzing` claim avoids duplicate Gemini calls; deletion during analysis discards the result. Failures show a safe error and preserve extracted text/chunks; recovery is delete/re-upload, not an automatic retry.
+
+Analysis accepts at most **200,000 extracted characters**, without truncating, and allows **120 seconds** per Gemini request within the upload route's 300-second execution budget. Output is capped at 16,384 tokens / 1 MB, with schema limits on text and list lengths. Oversized documents must be split. The original remains privately downloadable even if analysis fails.
+
+Ownership-protected tRPC queries (input `{ id: materialId }`):
+- `analysis.getOverview`: `{ overview }` or `null` while not ready.
+- `analysis.getTopics`: ordered topics, or `[]` while not ready.
+- `analysis.getStudyGuide`: `{ overview, keyConcepts, keyTerms }` or `null` while not ready.
+- `material.getStatus`: status and safe processing error.
+
+Missing/foreign materials return `NOT_FOUND`; unauthenticated callers return `UNAUTHORIZED`. The workspace polls all processing stages with skeletons and displays live results at `ready`. These basic sections precede the richer tabbed workspace planned for Stage 7. AI-generated content renders as text (no raw HTML) and should be checked against the original.
 
 ### Focused verification
 
@@ -38,7 +54,7 @@ bun run test
 bun run test:integration
 ```
 
-Integration tests create and drop a uniquely named test database; the app database is untouched. They exercise real PostgreSQL, PDF/DOCX parsing, full-text search, ownership, upload/file handlers, atomic rollback and deletion. Cloudinary and framework scheduling/session boundaries use doubles confined to `/mocks`; no live cloud uploads happen in tests. A live Cloudinary round trip needs configured credentials and is separate from these automated checks.
+Integration tests create and drop a uniquely named test database; the app database is untouched. They exercise real PostgreSQL, PDF/DOCX parsing, full-text search, ownership, upload/file handlers, atomic rollback and deletion, plus analysis persistence, duplicate-call protection, deletion during inference, failure states, and authenticated tRPC callers. Cloudinary, Gemini and framework scheduling/session boundaries use doubles confined to `/mocks`; no live cloud requests happen in these tests. A live Cloudinary/Gemini round trip needs configured credentials and is separate from these automated checks.
 
 ## Learn More
 
