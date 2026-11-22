@@ -155,15 +155,23 @@ flowchart TD
 ---
 
 ### Stage 5: AI Analysis Pipeline (Gemini + Zod)
-- [ ] **Gemini Client (`src/lib/ai/gemini.ts`)**:
-  - Server-side Gemini API client.
-- [ ] **Structured Schemas & Prompts (`src/lib/ai/schemas/`, `prompts/`)**:
-  - Structured topics schema: `z.array(z.object({ title: z.string(), summary: z.string() }))`.
-  - Structured study guide schema: `z.object({ overview: z.string(), keyConcepts: z.array(z.object({ term: z.string(), definition: z.string() })), keyTerms: z.array(z.string()) })`.
-- [ ] **Analysis Service (`src/features/analysis/services/analysis.service.ts`)**:
-  - Invoke Gemini with structured output, validate with Zod, persist to `topics` and `study_guides`, set status to `ready`.
-- [ ] **tRPC Routers**:
-  - Endpoints to fetch overview, topics, study guide, and material status.
+- [x] **Gemini Client (`src/lib/ai/gemini.ts`)**:
+  - Server-only `generateContent` REST client, explicit configurable model, timeout and bounded input/output. No new SDK dependency.
+- [x] **Structured Schemas & Prompts (`src/lib/ai/schemas/`, `prompts/`)**:
+  - Strict Zod schemas for source-ordered topics and study guides (overview, key concepts/definitions, glossary key terms).
+  - Source-only prompt treats uploaded content as data; no fabricated analysis fallback.
+- [x] **Analysis Service (`src/features/analysis/services/analysis-service.ts`)**:
+  - Atomic `extracted → analyzing` claim prevents duplicate inference. Validate output before atomically saving topics/guide and `ready`.
+  - Failures retain extraction with safe errors; deletion during inference discards results. No locks across Gemini calls.
+  - Upload schedules `process-material.ts` after the response: extraction followed by analysis.
+- [x] **tRPC Routers**:
+  - Ownership-protected `analysis.getOverview`, `analysis.getTopics`, `analysis.getStudyGuide`; existing `material.getStatus` reports each stage.
+- [x] **Usable results and focused verification**:
+  - Workspace/library poll through `extracted` and `analyzing` with skeletons; basic overview/topics/guide sections show live results at `ready`. Richer tabs remain Stage 7.
+  - Dashboard topic totals are owner-scoped now that analysis populates them.
+  - 105 unit tests and 32 isolated PostgreSQL/HTTP/tRPC integration tests pass; strict TypeScript passes. Gemini and cloud tests use doubles in `/mocks`; live credentialed Gemini quality remains unverified.
+
+**Limits:** 200,000 source characters, 120-second Gemini timeout, 16,384 output tokens, 1 MB response cap. No truncation, automatic retries, or durable workers. Delete/re-upload stalled documents and earlier extraction-only uploads. Glossary remains the existing `keyTerms: string[]` contract, with definitions in key concepts.
 
 ---
 
