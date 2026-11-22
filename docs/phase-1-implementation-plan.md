@@ -134,17 +134,23 @@ flowchart TD
 ---
 
 ### Stage 4: Document Ingestion, Parsing & Chunking
-- [ ] **Storage Adapter (`src/lib/storage/cloudinary.ts`)**:
-  - Private Cloudinary upload and signed resource access.
-- [ ] **Extractors (`src/features/documents/extractors/`)**:
-  - `pdf.extractor.ts`: Direct server-side parsing by page.
-  - `docx.extractor.ts`: Server-side extraction with mammoth preserving headings.
-- [ ] **Chunking Service (`src/features/documents/services/chunking.service.ts`)**:
-  - Text chunking (~500-1000 tokens) with overlap and metadata (page, section).
-- [ ] **Material Service (`src/features/materials/services/material.service.ts`)**:
-  - Material creation, listing, deletion with strict server-side ownership checks.
-- [ ] **Upload Route Handler (`src/app/api/materials/upload/route.ts`)**:
-  - Upload file, save to Cloudinary, run extraction & chunking, store in DB.
+- [x] **Storage Adapter (`src/lib/storage/cloudinary.ts`)**:
+  - Authenticated raw Cloudinary upload, short-lived signed resource access, and original deletion.
+- [x] **Extractors (`src/features/documents/extractors/`)**:
+  - `pdf-extractor.ts`: Direct server-side parsing by actual page, including blank-page numbering.
+  - `docx-extractor.ts`: Server-side extraction with mammoth preserving headings; no fabricated page citations.
+- [x] **Chunking Service (`src/features/documents/services/chunking-service.ts`)**:
+  - Approximate 750-token chunks with 100-token overlap and page/section metadata; never cross citation boundaries.
+- [x] **Material Service (`src/features/materials/services/material.service.ts`)**:
+  - Material creation, listing, signed file access, status, and storage-aware deletion with server-side ownership checks.
+- [x] **Upload Route Handler (`src/app/api/materials/upload/route.ts`)**:
+  - Bounded multipart parsing and file validation (PDF/DOCX, 4 MiB); upload privately, save metadata, return HTTP 202, then extract/chunk atomically using Next.js `after()`.
+- [x] **Usable ingestion UI and verification**:
+  - Wired library upload buttons and basic `/library/[materialId]` status page with skeletons, original download, deletion, and polling.
+  - 76 unit tests and 14 isolated PostgreSQL/HTTP integration tests pass; strict TypeScript and production build pass. Test fixtures and integration doubles are confined to `/mocks`.
+  - Cloudinary options/signing/error handling are tested with SDK doubles; a live cloud upload/download round trip remains unverified.
+
+**Stage boundary:** successful ingestion now ends at `extracted`; Stage 5 owns AI analysis and `ready`. No AI output is fabricated. In-process work is not durable across interruption: delete/re-upload stalled documents. Cloudinary upload latency is still on the response path; <2 seconds is not guaranteed.
 
 ---
 
