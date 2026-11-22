@@ -17,6 +17,9 @@ export async function uploadOriginal({ buffer, storageId }: { buffer: Buffer; st
     return await new Promise<{ storageId: string }>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream({
         public_id: storageId,
+        // Dynamic folders organize the Media Library independently of public IDs.
+        asset_folder: "sivva/materials",
+        use_asset_folder_as_public_id_prefix: false,
         resource_type: "raw",
         type: "authenticated",
         overwrite: false,
