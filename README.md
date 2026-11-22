@@ -1,72 +1,221 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sivva
+
+> **Learn smarter. Study better.**  
+> A focused AI study companion designed to turn lecture notes and course documents into structured, actionable study workspaces.
+
+---
+
+## Overview
+
+**Sivva** is a personal, focused study application built for students and coursemates. Instead of acting as an overwhelming platform or generic chatbot, Sivva takes your course materials (lecture slides, notes, PDFs, and DOCX documents), securely extracts their content, and generates a structured study workspace:
+
+- **Executive overview & summaries**: Quick high-level breakdown of the entire document.
+- **Ordered topic outline**: Step-by-step topic breakdown with focused summaries.
+- **Key concepts & glossary**: Structured definitions and essential terminology.
+- **Grounded AI tutor**: Interactive Q&A strictly grounded in the uploaded material, citing genuine source pages and headings.
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Purpose / Notes |
+|---|---|---|
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router) + TypeScript | Full-stack architecture; Server Components by default |
+| **Styling & UI** | [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) | Custom design tokens; skeleton loaders for all loading states |
+| **Icons** | [Phosphor Icons](https://phosphoricons.com/) (`@phosphor-icons/react`) | Clean, consistent icon set |
+| **API & Transport** | [tRPC v11](https://trpc.io/) + [TanStack React Query](https://tanstack.com/query) | End-to-end type safety for queries and mutations |
+| **Authentication** | [Better Auth](https://www.better-auth.com/) | Email/password and Google OAuth; PostgreSQL/Drizzle integration |
+| **Database & ORM** | [PostgreSQL](https://www.postgresql.org/) (Docker / Neon) + [Drizzle ORM](https://orm.drizzle.team/) | Relational schema, migrations in `drizzle/`, type-safe queries |
+| **File Storage** | [Cloudinary](https://cloudinary.com/) (Authenticated / Private) | Secure, private storage under `sivva/materials/` with expiring signed URLs |
+| **AI Analysis** | [Google Gemini API](https://ai.google.dev/) (via REST) | Server-side structured generation validated with Zod schemas |
+| **Document Parsing** | `unpdf` (PDF) + `mammoth` (DOCX) | Server-side text and heading extraction with boundary tracking |
+| **Validation** | [Zod](https://zod.dev/) | Strict validation at all boundaries (tRPC inputs, AI outputs, env vars) |
+| **Testing** | [Vitest](https://vitest.dev/) | Isolated unit tests and PostgreSQL integration test suite |
+| **Package Manager** | [Bun](https://bun.sh/) | Fast package management and runtime scripts |
+
+---
+
+## Architecture & Design Principles
+
+### Golden Rule: Thin Transport, Rich Feature Services
+- **Routers and Route Handlers are thin**: They authenticate requests, validate inputs, and delegate directly to feature services.
+- **Feature services own business logic**: Services in `src/features/*/services/` encapsulate core domain logic and are free from tRPC or React dependencies.
+
+```
+Client (App Router + React Query + Phosphor Icons)
+  │
+  ├──► tRPC Router (`src/server/trpc/routers/`) ──┐
+  │                                               ▼
+  └──► Route Handlers (`src/app/api/`) ───► Feature Services (`src/features/*/services/`)
+                                                  │
+                                                  ├──► PostgreSQL (via Drizzle ORM)
+                                                  ├──► Cloudinary (Private Asset Storage)
+                                                  └──► Gemini API (Structured Prompts)
+```
+
+### Document Ingestion & Analysis Pipeline
+1. **Upload & Storage**: Files are validated (PDF signature / DOCX structure, max 4 MiB) and uploaded to Cloudinary as private, authenticated assets.
+2. **Immediate Feedback**: The upload endpoint returns an HTTP 202 response with a material record in `processing` status.
+3. **Background Processing**: Next.js `after()` triggers text extraction, chunking (preserving genuine page numbers and headings without fabricating page counts), and structured Gemini analysis.
+4. **Structured Gemini Inference**: Gemini generates overviews, ordered topics, key concepts, and glossary terms strictly validated against Zod schemas. Topics and study guides persist atomically as the status transitions to `ready`.
+5. **Private Access**: Uploaded originals are never public; files are accessed strictly via authenticated, short-lived signed URLs.
+
+### Design System
+- **Palette**: Nature-inspired academic tones — Forest Green (`#0F5132`), Sage Green (`#A7C957`), Mint (`#E8F5E9`), Neutral Surface (`#FFFFFF`), and Soft Background (`#FAFAF8`).
+- **Typography**: Plus Jakarta Sans.
+- **UX Consistency**: Skeleton loaders are used everywhere data is fetching — no bare "Loading..." text strings or disruptive spinners.
+
+---
+
+## Project Structure
+
+```
+src/
+├── app/                          # Next.js App Router (pages and layouts)
+│   ├── (auth)/                   # Login and register pages
+│   ├── (app)/                    # Protected workspace routes
+│   │   ├── dashboard/            # Dashboard and statistics
+│   │   ├── library/              # Document library & upload dialog
+│   │   │   └── [materialId]/     # Study workspace (Overview, Topics, Study Guide, Tutor)
+│   │   └── settings/             # User settings
+│   └── api/                      # Route Handlers
+│       ├── auth/[...all]/        # Better Auth endpoint
+│       ├── trpc/[trpc]/          # tRPC HTTP handler
+│       └── materials/            # File upload & authenticated download
+│
+├── features/                     # Feature modules (domain business logic)
+│   ├── materials/                # Uploads, metadata, ownership, storage integration
+│   ├── documents/                # PDF/DOCX extractors, section chunking
+│   ├── analysis/                 # Document summaries, topics, concept extraction
+│   ├── tutor/                    # Grounded Q&A, retrieval, source citations
+│   └── dashboard/                # Dashboard queries and aggregations
+│
+├── server/                       # API composition layer
+│   └── trpc/                     # Routers, procedures, auth middleware, and context
+│
+├── components/                   # UI components (shadcn/ui + shared layout)
+│   ├── ui/                       # Kebab-case UI elements (button, input, skeleton, etc.)
+│   └── layout/                   # Sidebar, app header, navigation
+│
+└── lib/                          # Infrastructure and shared libraries
+    ├── auth/                     # Better Auth server and client configurations
+    ├── db/                       # Drizzle database client and schema definitions
+    ├── ai/                       # Gemini REST client, prompts, and Zod schemas
+    ├── storage/                  # Cloudinary integration adapter
+    └── env.ts                    # Strict Zod environment variable validation
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- [Bun](https://bun.sh/) (v1.1+)
+- [Docker](https://www.docker.com/) & Docker Compose (for local PostgreSQL)
+
+### 1. Clone & Install Dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+git clone git@github.com:iammonaski/sivva.git
+cd sivva
+bun install
+```
+
+### 2. Configure Environment Variables
+
+Copy the example environment configuration:
+
+```bash
+cp .env.example .env
+```
+
+Update `.env` with your credentials:
+
+```ini
+# Environment
+NODE_ENV=development
+
+# Database (PostgreSQL)
+DATABASE_URL=postgresql://sivva:sivva_dev_password@localhost:5432/sivva
+
+# Better Auth
+BETTER_AUTH_SECRET=dev_secret_sivva_study_companion_32chars_min
+BETTER_AUTH_URL=http://localhost:3000
+
+# Google OAuth (Optional for local development)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Gemini AI API
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-3.5-flash-lite
+
+# Cloudinary (Private document storage)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+### 3. Start Local Database
+
+Spin up the local PostgreSQL container:
+
+```bash
+docker compose up -d
+```
+
+Apply database migrations:
+
+```bash
+bunx drizzle-kit push
+```
+
+### 4. Run the Development Server
+
+```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Available Scripts
 
-## Document ingestion (Stage 4)
+| Command | Description |
+|---|---|
+| `bun dev` | Starts the Next.js development server |
+| `bun run build` | Builds the application for production |
+| `bun start` | Starts the production server |
+| `bun run lint` | Runs ESLint checks |
+| `bun run test` | Runs the Vitest unit test suite |
+| `bun run test:integration` | Runs PostgreSQL integration tests (requires local Docker container) |
 
-Sign in, open `/library`, and choose **Upload Document**. Supported files are PDF and DOCX, up to **4 MiB** (below Vercel's request limit, with space for multipart headers). The server validates the extension, MIME type, and PDF signature or DOCX ZIP structure. DOCX archives are limited to 32 MiB expanded / 2,000 entries; PDFs to 300 pages. Scanned/image-only documents require OCR and return a readable processing error.
+---
 
-Configure the Cloudinary variables in `.env` with real credentials. Originals use **raw, authenticated** Cloudinary storage; the database stores the public ID, not a delivery URL. New uploads are organized in the **`sivva/materials`** Media Library folder using Cloudinary's dynamic folder mode, independently of their storage IDs. No folder environment variable or upload preset is needed; existing uploads are not moved. `/api/materials/[materialId]/file` checks ownership and redirects to a 60-second signed download. PDFs/DOCX are never uploaded as public assets.
+## Roadmap
 
-Upload returns HTTP 202 after storage and metadata creation. Next.js `after()` runs a feature-service pipeline that extracts and atomically persists text/chunks, then generates and saves AI analysis. Status advances `processing → extracted → analyzing → ready` (or `error`). PDF chunks preserve actual page numbers; DOCX chunks cite headings and leave page numbers null. Chunk size is approximately 750 tokens with 100-token overlap (four Unicode characters/token estimate); short pages/sections remain short so citations never cross boundaries.
+- [x] **Phase 1: Upload & Understand**
+  - [x] Next.js foundation, design system, and responsive shell
+  - [x] PostgreSQL, Drizzle schema, migrations, and Better Auth
+  - [x] Private Cloudinary upload pipeline with server-side validation
+  - [x] Text and heading extraction for PDF and DOCX
+  - [x] Structured Gemini analysis (overviews, topics, glossary, key concepts)
+  - [ ] Grounded Q&A tutor with streaming and source citations
+  - [ ] Full tabbed study workspace
+- [ ] **Phase 2: Related Resources**
+  - [ ] Curated external learning resources (YouTube lessons, articles, documentation)
+  - [ ] Academic paper discovery via scholarly metadata
+  - [ ] Contextual relevance explanations
+- [ ] **Phase 3: Practice & Revision**
+  - [ ] Topic-based quiz generation
+  - [ ] Concept flashcards with spaced repetition
+- [ ] **Phase 4: Guided Learning**
+  - [ ] Prerequisite concept mapping and adaptive study schedules
 
-This is in-process processing, not a durable queue: an interrupted server invocation can leave `processing`, `extracted`, or `analyzing` behind. Delete and re-upload an interrupted document. Documents uploaded before Stage 5 that are already `extracted` also need re-uploading to run the complete pipeline. Upload latency still includes Cloudinary/network latency, so a sub-two-second response is not guaranteed. Deletion removes private storage and cascades database data; cloud deletion failures retain the record for retry.
+---
 
-## AI analysis (Stage 5)
+## License
 
-Set `GEMINI_API_KEY` to a real server-side API key. The optional, validated `GEMINI_MODEL` defaults to the explicit stable ID **`gemini-3.5-flash-lite`**; choose another available Gemini model if your account requires it. No Gemini SDK is needed: the server uses `generateContent` REST with a JSON schema generated from Zod. Only extracted source text is sent to Gemini—no user IDs, original filenames, storage identifiers, or download URLs.
-
-The source-grounded prompt generates an overview, ordered topics, key concepts/definitions, and glossary key terms. All responses must finish successfully, parse as JSON, and pass strict Zod validation before persistence. Topics and the study guide are saved together with `ready` in one transaction. An atomic `analyzing` claim avoids duplicate Gemini calls; deletion during analysis discards the result. Failures show a safe error and preserve extracted text/chunks; recovery is delete/re-upload, not an automatic retry.
-
-Analysis accepts at most **200,000 extracted characters**, without truncating, and allows **120 seconds** per Gemini request within the upload route's 300-second execution budget. Output is capped at 16,384 tokens / 1 MB, with schema limits on text and list lengths. Oversized documents must be split. The original remains privately downloadable even if analysis fails.
-
-Ownership-protected tRPC queries (input `{ id: materialId }`):
-- `analysis.getOverview`: `{ overview }` or `null` while not ready.
-- `analysis.getTopics`: ordered topics, or `[]` while not ready.
-- `analysis.getStudyGuide`: `{ overview, keyConcepts, keyTerms }` or `null` while not ready.
-- `material.getStatus`: status and safe processing error.
-
-Missing/foreign materials return `NOT_FOUND`; unauthenticated callers return `UNAUTHORIZED`. The workspace polls all processing stages with skeletons and displays live results at `ready`. These basic sections precede the richer tabbed workspace planned for Stage 7. AI-generated content renders as text (no raw HTML) and should be checked against the original.
-
-### Focused verification
-
-```bash
-bun run test
-# Requires the local Docker PostgreSQL from docker-compose.yml:
-bun run test:integration
-```
-
-Integration tests create and drop a uniquely named test database; the app database is untouched. They exercise real PostgreSQL, PDF/DOCX parsing, full-text search, ownership, upload/file handlers, atomic rollback and deletion, plus analysis persistence, duplicate-call protection, deletion during inference, failure states, and authenticated tRPC callers. Cloudinary, Gemini and framework scheduling/session boundaries use doubles confined to `/mocks`; no live cloud requests happen in these tests. A live Cloudinary/Gemini round trip needs configured credentials and is separate from these automated checks.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the [MIT License](LICENSE).
