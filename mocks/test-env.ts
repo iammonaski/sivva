@@ -1,5 +1,8 @@
 import { vi } from "vitest";
 
+// Next.js supplies this build-time guard; tests run outside its module resolver.
+vi.mock("server-only", () => ({}));
+
 // Isolated test configuration; no real cloud credentials or production data.
 export const testDatabaseName = `sivva_ingestion_test_${process.pid}`;
 export const testAdminUrl = "postgresql://sivva:sivva_dev_password@localhost:5432/postgres";

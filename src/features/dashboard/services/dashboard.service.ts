@@ -8,20 +8,12 @@ export async function getDashboardStats({ userId }: { userId: string }) {
     .from(materials)
     .where(eq(materials.userId, userId));
 
-  const userMaterials = await db
-    .select({ id: materials.id })
-    .from(materials)
+  const [topicCountResult] = await db
+    .select({ value: count() })
+    .from(topics)
+    .innerJoin(materials, eq(topics.materialId, materials.id))
     .where(eq(materials.userId, userId));
-
-  const materialIds = userMaterials.map((m) => m.id);
-
-  let totalTopics = 0;
-  if (materialIds.length > 0) {
-    const topicCountResults = await db
-      .select({ value: count() })
-      .from(topics);
-    totalTopics = topicCountResults[0]?.value ?? 0;
-  }
+  const totalTopics = topicCountResult?.value ?? 0;
 
   const recentMaterials = await db
     .select({
