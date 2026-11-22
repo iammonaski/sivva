@@ -2,6 +2,7 @@
 
 > **Scope:** Phase 1 (Upload & Understand) as defined in [SPEC.md](file:///home/monaski/workspace/sivva/SPEC.md) and [AGENTS.md](file:///home/monaski/workspace/sivva/AGENTS.md).
 > **Goal:** Allow a student to upload course materials (PDF/DOCX), automatically generate a structured study breakdown (topics, overview, key concepts, glossary), navigate the content, and ask questions grounded in the material with source citations.
+> **Progress (2026-11-22):** Stages 1–5 are merged into `main`. Next: Stage 6 — grounded Q&A, retrieval, and streaming. Basic analysis results are live in the workspace; richer tabs remain Stage 7. Live cloud/AI verification and full Phase 1 acceptance testing remain outstanding.
 
 ---
 
@@ -11,7 +12,7 @@
 2. **Retrieval Strategy**: Standard PostgreSQL full-text search (`tsvector` / trigram) preserving page and section citations — keeping the setup lean with zero extra vector dependencies.
 3. **Extraction & Processing Strategy**:
    - Direct server-side parsing (`unpdf` for PDF, `mammoth` for DOCX).
-   - **Fast upload response with in-process background processing**: The upload route handler uploads the file to Cloudinary, creates the database record with `status: "processing"`, and returns immediately (<2s).
+   - **Fast upload response with in-process background processing**: The upload route handler uploads the file to Cloudinary, creates the database record with `status: "processing"`, and returns HTTP 202 before extraction and analysis. Cloudinary/network latency is still on the response path; <2 seconds is a goal, not a guarantee.
    - In-process background task (using Next.js `after()` or async feature service) performs extraction, chunking, and Gemini analysis without requiring Redis or BullMQ.
    - The UI redirects immediately to `/library/[materialId]` and renders skeleton loaders while polling `material.getStatus` until `ready`.
 4. **Icons**: Phosphor Icons (`@phosphor-icons/react`).
@@ -150,7 +151,7 @@ flowchart TD
   - 76 unit tests and 14 isolated PostgreSQL/HTTP integration tests pass; strict TypeScript and production build pass. Test fixtures and integration doubles are confined to `/mocks`.
   - Cloudinary options/signing/error handling are tested with SDK doubles; a live cloud upload/download round trip remains unverified.
 
-**Stage boundary:** successful ingestion now ends at `extracted`; Stage 5 owns AI analysis and `ready`. No AI output is fabricated. In-process work is not durable across interruption: delete/re-upload stalled documents. Cloudinary upload latency is still on the response path; <2 seconds is not guaranteed.
+**Stage boundary:** the extraction service ends at `extracted`; the merged Stage 5 pipeline then claims `analyzing` and advances to `ready` after validated analysis is saved. No AI output is fabricated. In-process work is not durable across interruption: delete/re-upload stalled documents. Cloudinary upload latency is still on the response path; <2 seconds is not guaranteed.
 
 ---
 
@@ -205,7 +206,10 @@ flowchart TD
 ---
 
 ### Stage 8: Verification & Automated Tests
-- [ ] **Service Tests (`vitest`)**:
-  - Chunking tests, boundary tests, Zod validation tests.
+
+**Existing coverage:** Stages 4–5 already include chunking/extraction, upload validation, Zod output validation, and persistence/failure/ownership tests. The verified baseline is 105 unit tests and 32 isolated integration tests. Complete tutor coverage and live end-to-end acceptance checks after Stage 6; automated provider doubles do not verify live Gemini quality.
+
+- [ ] **Complete Phase 1 Service Tests (`vitest`)**:
+  - Extend existing tests to cover retrieval, grounded tutor responses, streaming, and conversation persistence.
 - [ ] **Full Flow Verification**:
-  - Upload sample PDF / DOCX notes and test complete pipeline end-to-end.
+  - Upload sample PDF / DOCX notes and test the complete upload → analysis → grounded Q&A pipeline end-to-end with configured providers.
