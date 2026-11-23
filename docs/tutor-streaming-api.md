@@ -1,6 +1,6 @@
 # Tutor streaming API
 
-Stage 6 provides the backend. The tabbed workspace and stream consumer belong to Stage 7.
+Stage 6 provides the backend. Stage 7 adds the tabbed workspace and browser stream consumer, using the shared event schema below.
 
 ## Request
 

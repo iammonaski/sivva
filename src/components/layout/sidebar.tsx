@@ -45,9 +45,9 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-border bg-surface">
+    <aside className="flex shrink-0 flex-col border-b border-border bg-surface md:h-dvh md:w-64 md:border-r md:border-b-0">
       {/* Brand Header */}
-      <div className="flex h-16 items-center gap-2.5 border-b border-border px-6">
+      <div className="flex h-14 items-center gap-2.5 border-b border-border px-4 md:h-16 md:px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-primary">
           <BookBookmark size={20} weight="bold" />
         </div>
@@ -60,7 +60,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 space-y-1 p-4">
+      <nav aria-label="Main navigation" className="flex gap-1 p-2 md:block md:flex-1 md:space-y-1 md:p-4">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
@@ -68,7 +68,8 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors ${
+              aria-current={isActive ? "page" : undefined}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:justify-start md:gap-3 md:px-3.5 ${
                 isActive
                   ? "bg-accent text-primary font-semibold"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -82,7 +83,7 @@ export function Sidebar() {
       </nav>
 
       {/* User Section Footer */}
-      <div className="border-t border-border p-4">
+      <div className="hidden border-t border-border p-4 md:block">
         {isPending ? (
           <div className="flex items-center gap-3">
             <Skeleton className="h-9 w-9 rounded-full" />
@@ -115,6 +116,7 @@ export function Sidebar() {
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-destructive"
               onClick={handleSignOut}
+              aria-label="Sign out"
               title="Sign out"
             >
               <SignOut size={16} />
