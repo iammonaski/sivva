@@ -9,6 +9,10 @@ const envSchema = z.object({
     .string()
     .min(16, "BETTER_AUTH_SECRET must be at least 16 characters"),
   BETTER_AUTH_URL: z.string().url("BETTER_AUTH_URL must be a valid URL"),
+  NEXT_PUBLIC_APP_URL: z
+    .string()
+    .url("NEXT_PUBLIC_APP_URL must be a valid URL")
+    .default("http://localhost:3000"),
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
   GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),

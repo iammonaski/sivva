@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
-import { buttonVariants } from "@/components/ui/button";
+import { SiteHeaderAuth } from "@/components/layout/site-header-auth";
 
 export function SiteHeader() {
   return (
@@ -15,18 +15,7 @@ export function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-1 sm:gap-2">
-          <Link
-            href="/login"
-            className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/register"
-            className={buttonVariants({ size: "default", className: "px-4" })}
-          >
-            Get started
-          </Link>
+          <SiteHeaderAuth />
         </nav>
       </div>
     </header>
