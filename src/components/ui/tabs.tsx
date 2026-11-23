@@ -45,7 +45,7 @@ export function Tabs<T extends string>({
               onValueChange(tabs[next].value);
             }}
             className={cn(
-              "flex min-h-11 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-4",
+              "flex min-h-11 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4",
               value === tab.value ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >

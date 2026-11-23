@@ -18,11 +18,7 @@ export default function Home() {
       <main className="relative flex flex-1 items-center overflow-hidden">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            backgroundImage:
-              "radial-gradient(110% 65% at 50% -12%, rgba(167, 201, 87, 0.16) 0%, rgba(232, 245, 233, 0.6) 32%, rgba(250, 250, 248, 0) 68%)",
-          }}
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(110%_65%_at_50%_-12%,var(--secondary)_0%,var(--accent)_32%,transparent_68%)] opacity-40 dark:opacity-0"
         />
 
         <div className="mx-auto w-full max-w-3xl px-6 pb-24 pt-20 text-center sm:pb-32 sm:pt-28">

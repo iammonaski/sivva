@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
   BookBookmark,
   SquaresFour,
@@ -57,6 +58,7 @@ export function Sidebar() {
             Study Companion
           </span>
         </div>
+        <ThemeToggle className="ml-auto" />
       </div>
 
       {/* Navigation Links */}

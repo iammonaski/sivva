@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookBookmark } from "@phosphor-icons/react/dist/ssr";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export const metadata: Metadata = {
   title: "Authentication — Sivva",
@@ -13,7 +14,10 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
+      <header aria-label="Appearance" className="absolute right-4 top-4 sm:right-6">
+        <ThemeToggle />
+      </header>
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center text-center">
           <Link
