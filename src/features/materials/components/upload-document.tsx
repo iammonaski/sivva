@@ -6,21 +6,27 @@ import { UploadSimple } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc/client";
+import { cn } from "@/lib/utils";
 import { MAX_FILE_BYTES, uploadErrorSchema, uploadResponseSchema } from "../schemas/material";
 
-export function UploadDocument({ className }: { className?: string }) {
+export function UploadDocument({ className, dropzone = false }: { className?: string; dropzone?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
+  const busy = useRef(false);
   const router = useRouter();
   const utils = trpc.useUtils();
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function upload(file: File) {
+    if (busy.current) return;
     setError(null);
-    if (file.size > MAX_FILE_BYTES || file.size === 0) {
+    if (file.size > MAX_FILE_BYTES || file.size === 0 || !/\.(pdf|docx)$/i.test(file.name)) {
       setError("Choose a non-empty PDF or DOCX, 4 MB or smaller.");
+      if (input.current) input.current.value = "";
       return;
     }
+    busy.current = true;
     setUploading(true);
     try {
       const body = new FormData();
@@ -38,6 +44,7 @@ export function UploadDocument({ className }: { className?: string }) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The upload failed. Please try again.");
     } finally {
+      busy.current = false;
       setUploading(false);
       if (input.current) input.current.value = "";
     }
@@ -51,10 +58,23 @@ export function UploadDocument({ className }: { className?: string }) {
           const file = event.target.files?.[0];
           if (file) void upload(file);
         }} />
-      <Button className="gap-2" disabled={uploading} onClick={() => input.current?.click()}>
-        <UploadSimple size={16} weight="bold" />
-        {uploading ? "Uploading document…" : "Upload Document"}
-      </Button>
+      {dropzone ? <div
+        onDragOver={(event) => { event.preventDefault(); if (!uploading) setDragging(true); }}
+        onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+        onDrop={(event) => {
+          event.preventDefault(); setDragging(false);
+          if (uploading) return;
+          if (event.dataTransfer.files.length !== 1) { setError("Drop one PDF or DOCX at a time."); return; }
+          void upload(event.dataTransfer.files[0]);
+        }}
+        className={cn("flex flex-col items-center gap-3 rounded-xl border border-dashed bg-surface px-5 py-8 text-center", dragging ? "border-primary bg-accent" : "border-border")}
+      >
+        <UploadSimple size={28} className="text-primary" aria-hidden="true" />
+        <div><h2 className="text-lg font-medium">Bring your notes into focus</h2><p className="mt-1 text-sm text-muted-foreground">Drop a PDF or DOCX here, or choose a file. Up to 4 MB.</p></div>
+        <Button disabled={uploading} onClick={() => input.current?.click()}>Choose document</Button>
+      </div> : <Button className="gap-2" disabled={uploading} onClick={() => input.current?.click()}>
+        <UploadSimple size={16} weight="bold" aria-hidden="true" />Upload document
+      </Button>}
       {uploading && <div role="status" aria-label="Document upload in progress" className="mt-3 space-y-2">
         <Skeleton className="h-2 w-full" /><Skeleton className="h-2 w-3/4" />
       </div>}

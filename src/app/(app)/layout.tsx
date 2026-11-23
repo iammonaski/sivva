@@ -8,12 +8,13 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <React.Suspense fallback={<Skeleton className="h-screen w-64 shrink-0 rounded-none" />}>
+    <div className="flex min-h-dvh flex-col bg-background md:h-dvh md:flex-row md:overflow-hidden">
+      <a href="#main-content" className="sr-only z-50 rounded-md bg-primary p-3 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to content</a>
+      <React.Suspense fallback={<Skeleton className="h-28 w-full shrink-0 rounded-none md:h-dvh md:w-64" />}>
         <Sidebar />
       </React.Suspense>
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl p-6 md:p-8">{children}</div>
+      <main id="main-content" className="min-w-0 flex-1 md:overflow-y-auto">
+        <div className="mx-auto max-w-6xl p-4 md:p-8">{children}</div>
       </main>
     </div>
   );

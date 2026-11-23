@@ -7,6 +7,8 @@ import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DocumentAnalysis } from "@/features/analysis/components/document-analysis";
+import { MaterialStatus } from "./material-status";
+import { Badge } from "@/components/ui/badge";
 
 export function MaterialWorkspace({ materialId }: { materialId: string }) {
   const router = useRouter();
@@ -64,14 +66,16 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
         Library
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
+        <div className="min-w-0 flex-1">
+          <h1 className="break-words text-2xl font-semibold text-foreground sm:text-3xl">
             {material.data.title}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {material.data.fileName} · {material.data.fileType.toUpperCase()} ·{" "}
-            {(material.data.fileSize / 1024 / 1024).toFixed(2)} MB
-          </p>
+          <p className="mt-2 break-words text-sm text-muted-foreground">{material.data.fileName}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Badge>{material.data.fileType.toUpperCase()}</Badge>
+            <MaterialStatus status={currentStatus} />
+            <span className="text-xs text-muted-foreground">{(material.data.fileSize / 1024 / 1024).toFixed(2)} MB · Uploaded {new Date(material.data.createdAt).toLocaleDateString()}</span>
+          </div>
         </div>
         <div className="flex gap-2">
           <a

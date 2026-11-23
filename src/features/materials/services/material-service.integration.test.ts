@@ -372,9 +372,22 @@ describe("AI analysis with real PostgreSQL", () => {
     await db.update(materials).set({ userId: other }).where(eq(materials.id, created.materialId));
     await processUpload(created, other);
     await analyzeDocument({ id: created.materialId, userId: other });
-    expect((await getDashboardStats({ userId: owner })).totalTopics).toBe(2);
-    expect((await getDashboardStats({ userId: other })).totalTopics).toBe(2);
-    expect((await getDashboardStats({ userId: "missing" })).totalTopics).toBe(0);
+    expect(await getDashboardStats({ userId: owner })).toMatchObject({ totalTopics: 2, totalStudyGuides: 1 });
+    expect(await getDashboardStats({ userId: other })).toMatchObject({ totalTopics: 2, totalStudyGuides: 1 });
+    expect(await getDashboardStats({ userId: "missing" })).toMatchObject({ totalTopics: 0, totalStudyGuides: 0 });
+  });
+
+  it("returns the newest five materials rather than the oldest", async () => {
+    const ids: string[] = [];
+    for (let index = 0; index < 6; index++) {
+      const created = await uploadPdf();
+      ids.push(created.materialId);
+      await db.update(materials).set({ createdAt: new Date(Date.UTC(2026, 0, index + 1)) }).where(eq(materials.id, created.materialId));
+    }
+    const stats = await getDashboardStats({ userId: owner });
+    expect(stats.recentMaterials.map((material) => material.id)).toEqual(ids.slice(1).reverse());
+    expect(stats.totalMaterials).toBe(6);
+    expect(stats.totalStudyGuides).toBe(0);
   });
 });
 

@@ -1,106 +1,41 @@
 "use client";
 
-import * as React from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { DownloadSimple, FolderSimple, ListBullets, SquaresFour } from "@phosphor-icons/react";
 import { trpc } from "@/lib/trpc/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { UploadDocument } from "@/features/materials/components/upload-document";
-import {
-  Clock,
-  ArrowRight,
-  FolderSimple,
-} from "@phosphor-icons/react";
+import { MaterialStatus } from "@/features/materials/components/material-status";
 
 export default function LibraryPage() {
-  const { data: materials, isLoading, error } = trpc.material.list.useQuery(undefined, {
-    refetchInterval: (query) => query.state.data?.some((material) => ["pending", "processing", "extracted", "analyzing"].includes(material.status)) ? 2000 : false,
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [search, setSearch] = useState("");
+  const query = trpc.material.list.useQuery(undefined, {
+    refetchInterval: (result) => result.state.data?.some((material) => ["pending", "processing", "extracted", "analyzing"].includes(material.status)) ? 2000 : false,
   });
+  const materials = query.data?.filter((material) => `${material.title} ${material.fileName}`.toLowerCase().includes(search.toLowerCase()));
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Course Library
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your uploaded documents, lecture notes, and study workspaces.
-          </p>
-        </div>
-        <UploadDocument />
-      </div>
-
-      {/* Materials List */}
-      {error ? <p role="alert" className="text-sm text-destructive">{error.message}</p> : isLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-44 rounded-xl" />
-          <Skeleton className="h-44 rounded-xl" />
-          <Skeleton className="h-44 rounded-xl" />
-        </div>
-      ) : materials && materials.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {materials.map((material) => (
-            <Link
-              key={material.id}
-              href={`/library/${material.id}`}
-              className="flex flex-col justify-between rounded-xl border border-border bg-surface p-5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="flex h-7 items-center rounded-md bg-muted px-2 text-[11px] font-semibold uppercase text-foreground">
-                    {material.fileType}
-                  </span>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                      material.status === "ready"
-                        ? "bg-accent text-primary"
-                        : ["pending", "processing", "extracted", "analyzing"].includes(material.status)
-                        ? "bg-amber-100 text-amber-800"
-                        : material.status === "error"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {material.status}
-                  </span>
-                </div>
-                <h3 className="mt-3 font-semibold text-foreground line-clamp-1">
-                  {material.title}
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
-                  {material.fileName}
-                </p>
-              </div>
-
-              <div className="mt-6 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Clock size={12} />
-                  {new Date(material.createdAt).toLocaleDateString()}
-                </span>
-                <span className="flex items-center gap-1 font-medium text-primary">
-                  Open Study Workspace
-                  <ArrowRight size={12} />
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface/50 py-16 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-primary">
-            <FolderSimple size={28} />
-          </div>
-          <h3 className="mt-4 text-base font-semibold text-foreground">
-            No materials uploaded yet
-          </h3>
-          <p className="mt-1.5 max-w-sm text-xs text-muted-foreground">
-            Upload PDF or DOCX lecture materials to extract concepts, create
-            study guides, and interact with an AI tutor.
-          </p>
-          <UploadDocument className="mt-5" />
-        </div>
-      )}
+  return <div className="space-y-6">
+    <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Course library</h1><p className="mt-2 text-sm text-muted-foreground">Your notes, documents, and study workspaces.</p></div><UploadDocument /></header>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="w-full sm:max-w-sm"><label htmlFor="library-search" className="sr-only">Search materials</label><Input id="library-search" type="search" placeholder="Search your materials" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
+      <div className="flex gap-1" role="group" aria-label="Library layout"><Button variant={view === "grid" ? "accent" : "ghost"} size="icon" aria-label="Grid view" aria-pressed={view === "grid"} onClick={() => setView("grid")}><SquaresFour aria-hidden="true" /></Button><Button variant={view === "list" ? "accent" : "ghost"} size="icon" aria-label="List view" aria-pressed={view === "list"} onClick={() => setView("list")}><ListBullets aria-hidden="true" /></Button></div>
     </div>
-  );
+    {query.error ? <div role="alert" className="space-y-3"><p className="text-sm text-destructive">{query.error.message}</p><Button variant="outline" onClick={() => void query.refetch()}>Retry library</Button></div> : query.isLoading ? <div aria-busy="true" aria-label="Fetching materials" className={view === "grid" ? "grid gap-4 md:grid-cols-2 lg:grid-cols-3" : "space-y-3"}><Skeleton className={view === "grid" ? "h-52 rounded-xl" : "h-28 rounded-xl"} /><Skeleton className={view === "grid" ? "h-52 rounded-xl" : "h-28 rounded-xl"} /><Skeleton className={view === "grid" ? "h-52 rounded-xl" : "h-28 rounded-xl"} /></div>
+      : materials?.length ? <ul className={view === "grid" ? "grid gap-4 md:grid-cols-2 lg:grid-cols-3" : "space-y-3"}>{materials.map((material) => <li key={material.id} className={`rounded-xl border border-border bg-surface p-5 ${view === "list" ? "flex flex-wrap items-center justify-between gap-4" : "flex flex-col"}`}>
+        <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><Badge>{material.fileType.toUpperCase()}</Badge><MaterialStatus status={material.status} /></div>
+          <h2 className="mt-3 text-lg font-medium"><Link href={`/library/${material.id}`} className="break-words text-foreground outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring">{material.title}</Link></h2>
+          <p className="mt-1 break-words text-xs text-muted-foreground">{material.fileName}</p><p className="mt-2 text-xs text-muted-foreground">{(material.fileSize / 1024 / 1024).toFixed(2)} MB · {new Date(material.createdAt).toLocaleDateString()}</p>
+        </div>
+        <div className={`flex flex-wrap items-center gap-3 ${view === "grid" ? "mt-5 border-t border-border pt-4" : ""}`}>
+          <Link href={`/library/${material.id}`} className="py-2 text-sm font-medium text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">Open workspace</Link>
+          <a href={`/api/materials/${encodeURIComponent(material.id)}/file`} aria-label={`Download original: ${material.title}`} className="ml-auto rounded-md border border-border p-2 text-primary outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"><DownloadSimple size={18} aria-hidden="true" /></a>
+        </div>
+      </li>)}</ul> : query.data?.length ? <div className="rounded-xl border border-border bg-surface p-8 text-center"><h2 className="font-medium">No materials match your search</h2><Button variant="link" onClick={() => setSearch("")}>Clear search</Button></div>
+        : <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-12 text-center"><FolderSimple size={32} className="mx-auto text-primary" aria-hidden="true" /><h2 className="mt-4 text-lg font-medium">No materials yet</h2><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Upload PDF or DOCX lecture notes to create a study guide and ask questions grounded in your document.</p><UploadDocument className="mt-5" /></div>}
+  </div>;
 }

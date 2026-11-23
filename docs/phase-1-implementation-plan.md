@@ -2,7 +2,7 @@
 
 > **Scope:** Phase 1 (Upload & Understand) as defined in [SPEC.md](file:///home/monaski/workspace/sivva/SPEC.md) and [AGENTS.md](file:///home/monaski/workspace/sivva/AGENTS.md).
 > **Goal:** Allow a student to upload course materials (PDF/DOCX), automatically generate a structured study breakdown (topics, overview, key concepts, glossary), navigate the content, and ask questions grounded in the material with source citations.
-> **Progress (2026-11-23):** Stages 1–5 are merged into `main`. Stage 6 is implemented in the working tree with PostgreSQL retrieval, grounded streaming Q&A, and conversation history. Next: Stage 7 — the tabbed study workspace and Ask UI. Live cloud/AI verification and full Phase 1 acceptance testing remain outstanding.
+> **Progress (2026-11-23):** Stages 1–6 are merged into `main`. Stage 7 is implemented on `worktree-stage-7-study-workspace`: tabbed study views, live streaming Ask/history/citations, dashboard upload dropzone, library grid/list/search, and responsive navigation. Next: Stage 8 — browser interaction/accessibility checks and live cloud/AI end-to-end acceptance. Automated unit/integration checks and TypeScript pass; browser visual verification remains outstanding.
 
 ---
 
@@ -189,25 +189,27 @@ flowchart TD
   - `tutor.listConversations` and `tutor.getConversation` are ownership-protected tRPC queries.
   - 142 unit tests and 50 isolated PostgreSQL/HTTP/tRPC integration tests pass; strict TypeScript passes. Test doubles/fixtures stay in `/mocks`; worktree copies are excluded from Vitest discovery.
 
-**Contract and limits:** See [Tutor streaming API](tutor-streaming-api.md). Questions: 2,000 characters; request body: 16 KiB; answers: 16,000 characters; Gemini: 120-second timeout, 8,192 output tokens, 1 MB stream cap; conversations: 50 completed exchanges. Streaming deltas are provisional until `done`; an `error` means discard them. Page/heading metadata comes from persisted chunks, never the model. Lexical retrieval and live Gemini grounding quality are not yet verified with real course notes. The Ask UI remains Stage 7.
+**Contract and limits:** See [Tutor streaming API](tutor-streaming-api.md). Questions: 2,000 characters; request body: 16 KiB; answers: 16,000 characters; Gemini: 120-second timeout, 8,192 output tokens, 1 MB stream cap; conversations: 50 completed exchanges. Streaming deltas are provisional until `done`; an `error` means discard them. Page/heading metadata comes from persisted chunks, never the model. Lexical retrieval and live Gemini grounding quality are not yet verified with real course notes. The Ask UI is implemented in Stage 7.
 
 ---
 
 ### Stage 7: Frontend UI & Study Workspace (Skeletons & Phosphor Icons)
-- [ ] **Shared UI Components (`src/components/ui/`)**:
-  - shadcn/ui components with design system styling.
-  - Skeleton loaders for every view and list.
-- [ ] **App Navigation**:
-  - Sidebar with Phosphor Icons for Dashboard, Library, Settings.
-- [ ] **Dashboard (`/dashboard`)**:
-  - Recent materials with skeleton loaders during fetch, quick upload dropzone.
-- [ ] **Library (`/library`)**:
-  - Grid/list with status badges and actions.
-- [ ] **Study Workspace (`/library/[materialId]`)**:
-  - **Overview Tab**: Document overview & metadata.
-  - **Topics Tab**: Structured topic outline with summaries.
-  - **Study Guide Tab**: Key concepts & glossary cards.
-  - **Ask Tab**: Grounded chat with streaming output and citation chips.
+- [x] **Shared UI Components (`src/components/ui/`)**:
+  - Design-token tabs with arrow/Home/End keyboard support, badges and reduced-motion skeletons; safe study-text presentation without model HTML or remote links.
+  - Skeletons for study content, conversation lists/history/first deltas, uploads, dashboard and library.
+- [x] **App Navigation**:
+  - Responsive Dashboard/Library/Settings navigation with Phosphor Icons, active-page semantics and visible keyboard focus.
+- [x] **Dashboard (`/dashboard`)**:
+  - Live recent materials, quick-upload dropzone, query errors/retry, and actual owner-scoped study-guide totals. Recent materials now sort newest first.
+- [x] **Library (`/library`)**:
+  - Grid/list controls, title/file search, status badges, workspace and authenticated original-file actions.
+- [x] **Study Workspace (`/library/[materialId]`)**:
+  - **Overview Tab**: Document overview with retained metadata header.
+  - **Topics Tab**: Ordered topic outline with summaries.
+  - **Study Guide Tab**: Key concepts and glossary cards using existing definitions only.
+  - **Ask Tab**: Live POST SSE consumer, saved conversation history, draft/final distinction, Stop, error discard/reload, unsupported-answer labels, and expandable source chips using returned page/heading/excerpts.
+
+**Verification:** 152 unit tests (including browser-stream framing/UTF-8/cancellation and safe study-text tests), 51 isolated PostgreSQL/HTTP/tRPC integration tests, TypeScript and whitespace checks pass. Updated dashboard/library/workspace routes return HTTP 200 in the isolated development app. Browser screenshots/interactions could not run: DevTools returned `Target closed`, and sandboxed Brave failed its sandbox-helper setup. No sandbox bypass was used. Live credentialed upload/analysis/tutor acceptance and browser/accessibility verification remain Stage 8; no page counts, topic/source locations, or missing glossary definitions are fabricated.
 
 ---
 
