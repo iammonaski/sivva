@@ -7,7 +7,6 @@ import { readTutorRequest } from "@/features/tutor/services/tutor-request";
 import { TutorError } from "@/features/tutor/tutor-error";
 import type { TutorEvent } from "@/features/tutor/schemas/tutor";
 
-export const runtime = "nodejs";
 export const maxDuration = 180;
 
 export async function POST(request: Request, { params }: { params: Promise<{ materialId: string }> }) {
