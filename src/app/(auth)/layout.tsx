@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookBookmark } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { LogoMark } from "@/components/shared/logo";
 
 export const metadata: Metadata = {
   title: "Authentication — Sivva",
@@ -14,31 +15,35 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
-      <header aria-label="Appearance" className="absolute right-4 top-4 sm:right-6">
+    <div className="flex min-h-svh flex-col bg-background">
+      <header className="flex items-center justify-between px-4 py-2 sm:px-8">
+        <Link
+          href="/"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <ArrowLeft size={16} aria-hidden="true" />
+          Back to home
+        </Link>
         <ThemeToggle />
       </header>
-      <div className="w-full max-w-md space-y-8">
-        <div className="flex flex-col items-center text-center">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 text-primary transition-opacity hover:opacity-90"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-primary">
-              <BookBookmark size={24} weight="bold" />
-            </div>
-            <span className="text-2xl font-semibold tracking-tight text-foreground">
-              Sivva
-            </span>
-          </Link>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Learn smarter. Study better.
+
+      <main className="flex flex-1 items-center justify-center px-4 py-4">
+        <div className="w-full max-w-[400px]">
+          <div className="rounded-xl border border-border bg-surface p-6 shadow-[0_12px_48px_-20px_rgba(15,81,50,0.16)] dark:shadow-none">
+            <Link
+              href="/"
+              aria-label="Sivva home"
+              className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-primary/10 bg-accent text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            >
+              <LogoMark className="h-6 w-6" />
+            </Link>
+            {children}
+          </div>
+          <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
+            Sivva. Learn smarter. Study better.
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
-          {children}
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

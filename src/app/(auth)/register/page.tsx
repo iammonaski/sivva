@@ -3,16 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { GoogleLogo, CircleNotch } from "@phosphor-icons/react";
 import { signUp, signIn } from "@/lib/auth/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  GoogleLogo,
-  Envelope,
-  Lock,
-  User,
-  CircleNotch,
-} from "@phosphor-icons/react";
+import { PasswordInput } from "@/components/shared/password-input";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -35,21 +30,17 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const res = await signUp.email({
-        name,
-        email,
-        password,
-      });
+      const res = await signUp.email({ name, email, password });
 
       if (res.error) {
-        setError(res.error.message || "Failed to create account");
+        setError(res.error.message || "Unable to create your account. Please try again.");
         setIsLoading(false);
       } else {
         router.push("/dashboard");
         router.refresh();
       }
     } catch {
-      setError("An unexpected error occurred. Please try again.");
+      setError("Unable to create your account. Please try again.");
       setIsLoading(false);
     }
   };
@@ -58,29 +49,33 @@ export default function RegisterPage() {
     setError(null);
     setIsGoogleLoading(true);
     try {
-      await signIn.social({
+      const res = await signIn.social({
         provider: "google",
         callbackURL: "/dashboard",
       });
+      if (res.error) {
+        setError(res.error.message || "Unable to sign in with Google. Please try again.");
+        setIsGoogleLoading(false);
+      }
     } catch {
-      setError("Failed to initialize Google Sign In. Please try again.");
+      setError("Unable to sign in with Google. Please try again.");
       setIsGoogleLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Create an account
+        <h1 className="text-xl font-semibold leading-7 tracking-tight text-foreground">
+          Create your Sivva account
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Join Sivva to organize your lecture notes and study smarter
+        <p className="text-sm leading-5 text-muted-foreground">
+          Keep your notes and study guides in one place.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+        <div role="alert" className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -88,120 +83,96 @@ export default function RegisterPage() {
       <Button
         type="button"
         variant="outline"
-        className="w-full gap-2.5"
+        className="h-11 w-full gap-2.5 shadow-none sm:h-10"
         onClick={handleGoogleSignIn}
         disabled={isGoogleLoading || isLoading}
+        aria-busy={isGoogleLoading}
       >
         {isGoogleLoading ? (
-          <CircleNotch className="h-4 w-4 animate-spin" />
+          <CircleNotch aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
         ) : (
-          <GoogleLogo className="h-4 w-4" weight="bold" />
+          <GoogleLogo aria-hidden="true" weight="bold" />
         )}
         Continue with Google
       </Button>
 
-      <div className="relative flex items-center justify-center">
-        <div className="w-full border-t border-border" />
-        <span className="bg-surface px-3 text-xs uppercase tracking-wider text-muted-foreground">
-          or with email
-        </span>
+      <div className="flex items-center gap-4">
+        <div aria-hidden="true" className="h-px flex-1 bg-border" />
+        <span className="shrink-0 text-xs text-muted-foreground">or sign up with email</span>
+        <div aria-hidden="true" className="h-px flex-1 bg-border" />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3" aria-busy={isLoading}>
         <div className="space-y-1.5">
-          <label
-            htmlFor="name"
-            className="text-xs font-medium text-foreground"
-          >
+          <label htmlFor="name" className="block text-sm font-medium text-foreground">
             Full name
           </label>
-          <div className="relative">
-            <User
-              className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
-              weight="regular"
-            />
-            <Input
-              id="name"
-              type="text"
-              placeholder="Alex Johnson"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="pl-9"
-              required
-              disabled={isLoading || isGoogleLoading}
-            />
-          </div>
+          <Input
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            placeholder="Your full name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="h-11 text-base shadow-none sm:h-10 sm:text-sm"
+            required
+            disabled={isLoading || isGoogleLoading}
+          />
         </div>
 
         <div className="space-y-1.5">
-          <label
-            htmlFor="email"
-            className="text-xs font-medium text-foreground"
-          >
+          <label htmlFor="email" className="block text-sm font-medium text-foreground">
             Email address
           </label>
-          <div className="relative">
-            <Envelope
-              className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
-              weight="regular"
-            />
-            <Input
-              id="email"
-              type="email"
-              placeholder="student@university.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="pl-9"
-              required
-              disabled={isLoading || isGoogleLoading}
-            />
-          </div>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-11 text-base shadow-none sm:h-10 sm:text-sm"
+            required
+            disabled={isLoading || isGoogleLoading}
+          />
         </div>
 
         <div className="space-y-1.5">
-          <label
-            htmlFor="password"
-            className="text-xs font-medium text-foreground"
-          >
+          <label htmlFor="password" className="block text-sm font-medium text-foreground">
             Password
           </label>
-          <div className="relative">
-            <Lock
-              className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
-              weight="regular"
-            />
-            <Input
-              id="password"
-              type="password"
-              placeholder="At least 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pl-9"
-              required
-              disabled={isLoading || isGoogleLoading}
-            />
-          </div>
+          <PasswordInput
+            id="password"
+            name="password"
+            autoComplete="new-password"
+            aria-describedby="password-hint"
+            placeholder="Create a password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="h-11 text-base shadow-none sm:h-10 sm:text-sm"
+            minLength={8}
+            required
+            disabled={isLoading || isGoogleLoading}
+          />
+          <p id="password-hint" className="text-xs leading-4 text-muted-foreground">
+            Use at least 8 characters.
+          </p>
         </div>
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isLoading || isGoogleLoading}
-        >
-          {isLoading && <CircleNotch className="h-4 w-4 animate-spin" />}
+        <Button type="submit" className="h-11 w-full shadow-none sm:h-10" disabled={isLoading || isGoogleLoading}>
+          {isLoading && <CircleNotch aria-hidden="true" className="animate-spin motion-reduce:animate-none" />}
           Create account
         </Button>
       </form>
 
-      <div className="text-center text-xs text-muted-foreground">
+      <p className="text-center text-sm leading-5 text-muted-foreground">
         Already have an account?{" "}
-        <Link
-          href="/login"
-          className="font-medium text-primary hover:underline"
-        >
+        <Link href="/login" className="rounded-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           Sign in
         </Link>
-      </div>
+      </p>
     </div>
   );
 }
