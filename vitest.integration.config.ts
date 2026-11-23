@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     setupFiles: ["./mocks/test-env.ts"],
     include: ["**/*.integration.test.ts"],
-    exclude: ["**/node_modules/**", "**/.next/**"],
+    exclude: ["**/node_modules/**", "**/.next/**", "**/.claude/**"],
     fileParallelism: false,
     hookTimeout: 30_000,
     testTimeout: 30_000,
