@@ -4,7 +4,9 @@ import { materials } from "./materials";
 import { user } from "./auth";
 
 export interface Citation {
+  sourceId?: string;
   pageNumber?: number;
+  sectionHeading?: string;
   chunkId?: string;
   text?: string;
 }
@@ -14,6 +16,7 @@ export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   citations?: Citation[];
+  grounding?: "source-grounded" | "unsupported";
   createdAt: string;
 }
 

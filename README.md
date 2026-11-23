@@ -196,13 +196,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Roadmap
 
-- [x] **Phase 1: Upload & Understand**
+- [ ] **Phase 1: Upload & Understand**
   - [x] Next.js foundation, design system, and responsive shell
   - [x] PostgreSQL, Drizzle schema, migrations, and Better Auth
   - [x] Private Cloudinary upload pipeline with server-side validation
   - [x] Text and heading extraction for PDF and DOCX
   - [x] Structured Gemini analysis (overviews, topics, glossary, key concepts)
-  - [ ] Grounded Q&A tutor with streaming and source citations
+  - [x] Grounded Q&A backend with streaming and source citations ([API contract](docs/tutor-streaming-api.md); Ask UI is next)
   - [ ] Full tabbed study workspace
 - [ ] **Phase 2: Related Resources**
   - [ ] Curated external learning resources (YouTube lessons, articles, documentation)

@@ -2,7 +2,7 @@
 
 > **Scope:** Phase 1 (Upload & Understand) as defined in [SPEC.md](file:///home/monaski/workspace/sivva/SPEC.md) and [AGENTS.md](file:///home/monaski/workspace/sivva/AGENTS.md).
 > **Goal:** Allow a student to upload course materials (PDF/DOCX), automatically generate a structured study breakdown (topics, overview, key concepts, glossary), navigate the content, and ask questions grounded in the material with source citations.
-> **Progress (2026-11-22):** Stages 1–5 are merged into `main`. Next: Stage 6 — grounded Q&A, retrieval, and streaming. Basic analysis results are live in the workspace; richer tabs remain Stage 7. Live cloud/AI verification and full Phase 1 acceptance testing remain outstanding.
+> **Progress (2026-11-23):** Stages 1–5 are merged into `main`. Stage 6 is implemented in the working tree with PostgreSQL retrieval, grounded streaming Q&A, and conversation history. Next: Stage 7 — the tabbed study workspace and Ask UI. Live cloud/AI verification and full Phase 1 acceptance testing remain outstanding.
 
 ---
 
@@ -177,13 +177,19 @@ flowchart TD
 ---
 
 ### Stage 6: Grounded Q&A / Tutor Engine & Streaming
-- [ ] **Retrieval Service (`src/features/tutor/services/retrieval.service.ts`)**:
-  - PostgreSQL full-text search against `chunks` table returning matches with page/section numbers.
-- [ ] **Tutor Service (`src/features/tutor/services/tutor.service.ts`)**:
-  - Strict grounded prompt referencing retrieved chunks and requiring page citations.
-- [ ] **Streaming Route Handler (`src/app/api/materials/[materialId]/tutor/route.ts`)**:
-  - Stream AI response via `ReadableStream` with citations.
-  - Record exchange in `conversations` table.
+- [x] **Retrieval Service (`src/features/tutor/services/retrieval-service.ts`)**:
+  - Owner/material-scoped PostgreSQL full-text retrieval using the existing English GIN index. Ranked OR-lexeme matches, up to six whole chunks / 18,000 context characters, with genuine page/section metadata.
+- [x] **Tutor Service (`src/features/tutor/services/tutor-service.ts`)**:
+  - Source-only prompt treats documents/history as untrusted data. Zod validates structured answers; citation IDs and inline markers must agree and resolve to retrieved chunks.
+  - Explicit unsupported answers; no external-knowledge fallback. No lexical matches skip Gemini entirely. Bounded history helps follow-ups but is not evidence.
+- [x] **Streaming Route Handler (`src/app/api/materials/[materialId]/tutor/stream/route.ts`)**:
+  - Authenticated, same-origin POST with bounded JSON input. Actual Gemini SSE deltas via `ReadableStream`, followed by validated citation metadata and persisted completion.
+  - Completed exchanges save atomically; interrupted/invalid responses do not save. Cancellation aborts provider reads; stale concurrent turns return conflict, and deletion cannot resurrect records. No database lock across AI calls.
+- [x] **Conversation history & verification**:
+  - `tutor.listConversations` and `tutor.getConversation` are ownership-protected tRPC queries.
+  - 142 unit tests and 50 isolated PostgreSQL/HTTP/tRPC integration tests pass; strict TypeScript passes. Test doubles/fixtures stay in `/mocks`; worktree copies are excluded from Vitest discovery.
+
+**Contract and limits:** See [Tutor streaming API](tutor-streaming-api.md). Questions: 2,000 characters; request body: 16 KiB; answers: 16,000 characters; Gemini: 120-second timeout, 8,192 output tokens, 1 MB stream cap; conversations: 50 completed exchanges. Streaming deltas are provisional until `done`; an `error` means discard them. Page/heading metadata comes from persisted chunks, never the model. Lexical retrieval and live Gemini grounding quality are not yet verified with real course notes. The Ask UI remains Stage 7.
 
 ---
 
@@ -207,9 +213,9 @@ flowchart TD
 
 ### Stage 8: Verification & Automated Tests
 
-**Existing coverage:** Stages 4–5 already include chunking/extraction, upload validation, Zod output validation, and persistence/failure/ownership tests. The verified baseline is 105 unit tests and 32 isolated integration tests. Complete tutor coverage and live end-to-end acceptance checks after Stage 6; automated provider doubles do not verify live Gemini quality.
+**Existing coverage:** Stages 4–6 include chunking/extraction, upload validation, Zod output validation, retrieval, citation checks, streaming/cancellation, persistence/failure/concurrency, and ownership tests. The verified baseline is 142 unit tests and 50 isolated integration tests. Complete live end-to-end acceptance checks after Stage 7; automated provider doubles do not verify live Gemini quality.
 
-- [ ] **Complete Phase 1 Service Tests (`vitest`)**:
-  - Extend existing tests to cover retrieval, grounded tutor responses, streaming, and conversation persistence.
+- [x] **Phase 1 Service Tests (`vitest`)**:
+  - Retrieval, grounded tutor responses, streaming, and conversation persistence are covered alongside ingestion and analysis.
 - [ ] **Full Flow Verification**:
   - Upload sample PDF / DOCX notes and test the complete upload → analysis → grounded Q&A pipeline end-to-end with configured providers.

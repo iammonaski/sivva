@@ -416,7 +416,7 @@ Standard Better Auth schema; do not define manually.
 
 ## 13. Phase 1 Checklist
 
-**Status (2026-11-22):** implementation Stages 1–5 are merged. Next is Stage 6: grounded Q&A, retrieval, and streaming. The basic workspace displays live overview/topics/study-guide sections; the full tabbed workspace remains Stage 7. Automated verification covers 105 unit tests and 32 PostgreSQL/HTTP/tRPC integration tests, with TypeScript passing. Live Gemini/Cloudinary verification and testing with real course notes remain outstanding.
+**Status (2026-11-23):** implementation Stages 1–5 are merged. Stage 6 is implemented in the working tree: PostgreSQL retrieval, grounded streaming Q&A with validated citations, and owner-scoped conversation history. Next is Stage 7: the full tabbed workspace and Ask UI. Automated verification covers 142 unit tests and 50 PostgreSQL/HTTP/tRPC integration tests, with TypeScript passing. Live Gemini/Cloudinary verification and testing with real course notes remain outstanding.
 
 - [x] Next.js foundation, env configuration, and basic UI shell
 - [x] PostgreSQL, Drizzle, migrations, and Better Auth
@@ -426,7 +426,7 @@ Standard Better Auth schema; do not define manually.
 - [x] Text extraction with page references (PDF + DOCX headings; no fabricated DOCX page numbers)
 - [x] Topic/section extraction with validated structured output
 - [x] Overview, summaries, glossary, and key concepts generation
-- [ ] Grounded Q&A with citations; streaming via Route Handler
+- [x] Grounded Q&A backend with citations; streaming via Route Handler (Ask UI remains below)
 - [ ] Study workspace + mobile-responsive layout
 - [ ] Test with real course notes (varied lengths and formats)
 - [ ] Deploy for personal and coursemate testing; collect feedback before Phase 2

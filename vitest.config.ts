@@ -5,6 +5,6 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   test: {
     setupFiles: ["./mocks/test-env.ts"],
-    exclude: ["**/node_modules/**", "**/.next/**", "**/*.integration.test.ts"],
+    exclude: ["**/node_modules/**", "**/.next/**", "**/.claude/**", "**/*.integration.test.ts"],
   },
 });

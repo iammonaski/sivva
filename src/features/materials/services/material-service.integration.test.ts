@@ -1,4 +1,13 @@
 import { transport } from "../../../../mocks/transport";
+import { tutorProvider, resetTutorProvider } from "../../../../mocks/gemini-tutor";
+import { createTutorAnswer } from "../../../../mocks/tutor-fixtures";
+import { POST as tutorPOST } from "@/app/api/materials/[materialId]/tutor/stream/route";
+import { retrieveSources, MAX_CONTEXT_CHARACTERS } from "@/features/tutor/services/retrieval-service";
+import { getConversation, listConversations, prepareTutorTurn } from "@/features/tutor/services/tutor-service";
+import { TutorError } from "@/features/tutor/tutor-error";
+import { tutorRouter } from "@/server/trpc/routers/tutor-router";
+import { tutorEventSchema } from "@/features/tutor/schemas/tutor";
+import { conversations } from "@/lib/db/schema/conversations";
 import { gemini, resetGemini } from "../../../../mocks/gemini";
 import { createAnalysis } from "../../../../mocks/analysis-fixtures";
 import { createCallerContext } from "../../../../mocks/trpc-context";
@@ -47,6 +56,7 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   resetGemini();
+  resetTutorProvider();
   await db.delete(materials);
 });
 
@@ -396,5 +406,198 @@ describe("ownership-protected analysis tRPC endpoints", () => {
     const caller = analysisRouter.createCaller(createCallerContext(owner));
     await expect(caller.getOverview({ id: "" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(caller.getTopics({ id: "x".repeat(201) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
+async function readyTutorMaterial() {
+  const input = await extractedMaterial();
+  await analyzeDocument(input);
+  return { materialId: input.id, userId: owner };
+}
+async function tutorTurn(input: { materialId: string; userId: string; conversationId?: string; question?: string }) {
+  return Array.fromAsync(await prepareTutorTurn({ question: "What is photosynthesis?", ...input, signal: new AbortController().signal }));
+}
+function tutorRequest(materialId: string, body: unknown = { question: "What is photosynthesis?" }, origin = "http://localhost:3000") {
+  return new Request(`http://localhost:3000/api/materials/${materialId}/tutor/stream`, {
+    method: "POST", body: JSON.stringify(body), headers: { origin, "content-type": "application/json" },
+  });
+}
+const tutorParams = (materialId: string) => ({ params: Promise.resolve({ materialId }) });
+
+describe("grounded tutor retrieval and persistence", () => {
+  it("retrieves ranked, owner/material-scoped English lexemes with real page metadata", async () => {
+    const input = await readyTutorMaterial();
+    const second = await readyTutorMaterial();
+    await db.update(materials).set({ userId: other }).where(eq(materials.id, second.materialId));
+    const rows = await retrieveSources({ ...input, question: "Explain how photosynthesis converts energy" });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some((row) => row.pageNumber === 1)).toBe(true);
+    const ownIds = (await db.select().from(chunks).where(eq(chunks.materialId, input.materialId))).map((row) => row.id);
+    expect(rows.every((row) => ownIds.includes(row.chunkId))).toBe(true);
+    expect(await retrieveSources({ ...input, question: "the and of" })).toEqual([]);
+    expect(await retrieveSources({ ...input, question: "unrelatedquasar" })).toEqual([]);
+    await expect(retrieveSources({ ...input, userId: other, question: "photosynthesis" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+  it("bounds retrieval to six whole chunks and the context budget", async () => {
+    const input = await readyTutorMaterial();
+    const [document] = await db.select().from(documents).where(eq(documents.materialId, input.materialId));
+    await db.delete(chunks).where(eq(chunks.materialId, input.materialId));
+    await db.insert(chunks).values(Array.from({ length: 10 }, (_, chunkIndex) => ({ documentId: document.id, materialId: input.materialId,
+      content: "photosynthesis ".repeat(210), chunkIndex, pageNumber: chunkIndex + 1,
+    })));
+    const rows = await retrieveSources({ ...input, question: "photosynthesis" });
+    expect(rows.length).toBeLessThanOrEqual(6);
+    expect(rows.reduce((sum, row) => sum + row.content.length, 0)).toBeLessThanOrEqual(MAX_CONTEXT_CHARACTERS);
+    expect(rows[0].pageNumber).toBe(1);
+  });
+  it("saves only completed exchanges and returns citation metadata with history", async () => {
+    const input = await readyTutorMaterial();
+    const events = await tutorTurn(input);
+    const done = events.at(-1)!;
+    expect(done.type).toBe("done");
+    if (done.type !== "done") throw new Error("No completion");
+    expect(done.message.citations?.[0]).toMatchObject({ sourceId: "S1", pageNumber: 1 });
+    const conversation = await getConversation({ ...input, conversationId: done.conversationId });
+    expect(conversation.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+    expect(await listConversations(input)).toHaveLength(1);
+    await tutorTurn({ ...input, conversationId: done.conversationId, question: "Can you explain that?" });
+    expect((await getConversation({ ...input, conversationId: done.conversationId })).messages).toHaveLength(4);
+    expect(tutorProvider.streamTutorAnswer.mock.calls[1][0].history).toHaveLength(2);
+    await deleteMaterial({ id: input.materialId, userId: owner });
+    expect(await db.select().from(conversations)).toEqual([]);
+  });
+  it("returns an explicit unsupported response without calling Gemini for no matches", async () => {
+    const input = await readyTutorMaterial();
+    const events = await tutorTurn({ ...input, question: "unrelatedquasar" });
+    expect(tutorProvider.streamTutorAnswer).not.toHaveBeenCalled();
+    expect(events.at(-1)).toMatchObject({ type: "done", message: { grounding: "unsupported", citations: [] } });
+  });
+  it("preserves DOCX headings and never invents page numbers", async () => {
+    const file = createUploadFile({ buffer: createDocx({ paragraphs: [{ text: "Photosynthesis", heading: 1 }, { text: "Photosynthesis converts light into chemical energy." }] }), name: "notes.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const created = await createMaterial({ userId: owner, file });
+    await processUpload(created); await analyzeDocument({ id: created.materialId, userId: owner });
+    const events = await tutorTurn({ materialId: created.materialId, userId: owner });
+    const done = events.at(-1)!;
+    if (done.type !== "done") throw new Error("No completion");
+    expect(done.message.citations?.[0]).toMatchObject({ sectionHeading: "Photosynthesis" });
+    expect(done.message.citations?.[0]).not.toHaveProperty("pageNumber");
+  });
+  it("enforces readiness and conversation/material/user ownership before inference", async () => {
+    const created = await uploadPdf();
+    await expect(tutorTurn({ materialId: created.materialId, userId: owner })).rejects.toMatchObject({ code: "NOT_READY" });
+    const input = await readyTutorMaterial();
+    const done = (await tutorTurn(input)).at(-1)!;
+    if (done.type !== "done") throw new Error("No completion");
+    const second = await readyTutorMaterial();
+    for (const forbidden of [{ ...input, userId: other }, second]) {
+      await expect(getConversation({ ...forbidden, conversationId: done.conversationId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(tutorTurn({ ...forbidden, conversationId: done.conversationId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+    expect(tutorProvider.streamTutorAnswer).toHaveBeenCalledTimes(1);
+  });
+  it.each(["invalid", "failure", "cancel", "delete"])("discards an unfinished %s exchange", async (scenario) => {
+    const input = await readyTutorMaterial();
+    const controller = new AbortController();
+    tutorProvider.streamTutorAnswer.mockImplementationOnce(async function* () {
+      yield { type: "delta", text: "Partial" };
+      if (scenario === "failure") throw new TutorError("PROVIDER_ERROR", "Provider failed.");
+      if (scenario === "cancel") controller.abort();
+      if (scenario === "delete") await deleteMaterial({ id: input.materialId, userId: owner });
+      yield { type: "answer", answer: createTutorAnswer(scenario === "invalid" ? { sourceIds: ["S6"], answer: "Invented [S6]." } : {}) };
+    });
+    const iterator = await prepareTutorTurn({ ...input, question: "Photosynthesis?", signal: controller.signal });
+    await expect(Array.fromAsync(iterator)).rejects.toBeInstanceOf(TutorError);
+    expect(await db.select().from(conversations)).toEqual([]);
+  });
+  it("rejects concurrent stale history without losing a saved exchange", async () => {
+    const input = await readyTutorMaterial();
+    const done = (await tutorTurn(input)).at(-1)!;
+    if (done.type !== "done") throw new Error("No completion");
+    const turnInput = { ...input, question: "Photosynthesis?", conversationId: done.conversationId, signal: new AbortController().signal };
+    const first = await prepareTutorTurn(turnInput);
+    const second = await prepareTutorTurn(turnInput);
+    const results = await Promise.allSettled([Array.fromAsync(first), Array.fromAsync(second)]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.find((result) => result.status === "rejected")).toMatchObject({ reason: { code: "CONFLICT" } });
+    expect((await getConversation({ ...input, conversationId: done.conversationId })).messages).toHaveLength(4);
+  });
+  it("accepts consecutive maximum-length questions including their retrieval separator", async () => {
+    const input = await readyTutorMaterial();
+    const question = "photosynthesis".padEnd(2_000, "x");
+    const done = (await tutorTurn({ ...input, question })).at(-1)!;
+    if (done.type !== "done") throw new Error("No completion");
+    const second = await tutorTurn({ ...input, question, conversationId: done.conversationId });
+    expect(second.at(-1)?.type).toBe("done");
+  });
+  it("rejects a full conversation before retrieval or provider inference", async () => {
+    const input = await readyTutorMaterial();
+    const done = (await tutorTurn(input)).at(-1)!;
+    if (done.type !== "done") throw new Error("No completion");
+    const saved = await getConversation({ ...input, conversationId: done.conversationId });
+    await db.update(conversations).set({ messages: Array.from({ length: 50 }, () => saved.messages).flat() }).where(eq(conversations.id, done.conversationId));
+    await expect(tutorTurn({ ...input, conversationId: done.conversationId })).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(tutorProvider.streamTutorAnswer).toHaveBeenCalledTimes(1);
+  });
+  it("rolls back the entire exchange on persistence failure", async () => {
+    const input = await readyTutorMaterial();
+    await pool.query("ALTER TABLE conversations ADD CONSTRAINT test_reject_conversation CHECK (false)");
+    try {
+      await expect(tutorTurn(input)).rejects.toMatchObject({ code: "PERSISTENCE_ERROR" });
+      expect(await db.select().from(conversations)).toEqual([]);
+    } finally { await pool.query("ALTER TABLE conversations DROP CONSTRAINT test_reject_conversation"); }
+  });
+});
+
+describe("tutor HTTP streaming and tRPC history", () => {
+  it("sends SSE deltas then persisted completion with no-store headers", async () => {
+    const input = await readyTutorMaterial();
+    const response = await tutorPOST(tutorRequest(input.materialId), tutorParams(input.materialId));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const events = (await response.text()).split("\n\n").filter(Boolean).map((frame) => tutorEventSchema.parse(JSON.parse(frame.split("\ndata: ")[1])));
+    expect(events.map((event) => event.type)).toEqual(["delta", "done"]);
+    const done = events.at(-1)!;
+    if (done.type !== "done") throw new Error("No completion");
+    const caller = tutorRouter.createCaller(createCallerContext(owner));
+    expect(await caller.listConversations({ materialId: input.materialId })).toHaveLength(1);
+    expect((await caller.getConversation({ materialId: input.materialId, conversationId: done.conversationId })).messages).toHaveLength(2);
+    await expect(tutorRouter.createCaller(createCallerContext(other)).getConversation({ materialId: input.materialId, conversationId: done.conversationId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(tutorRouter.createCaller(createCallerContext(null)).listConversations({ materialId: input.materialId })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+  it("rejects origin, session, malformed input, foreign ownership and unready material before streaming", async () => {
+    const input = await readyTutorMaterial();
+    expect((await tutorPOST(tutorRequest(input.materialId, {}, "https://example.invalid"), tutorParams(input.materialId))).status).toBe(403);
+    transport.createTRPCContext.mockResolvedValueOnce({ session: null });
+    expect((await tutorPOST(tutorRequest(input.materialId), tutorParams(input.materialId))).status).toBe(401);
+    expect((await tutorPOST(tutorRequest(input.materialId, { question: "" }), tutorParams(input.materialId))).status).toBe(400);
+    expect((await tutorPOST(tutorRequest("invalid"), tutorParams("invalid"))).status).toBe(400);
+    transport.createTRPCContext.mockResolvedValueOnce({ session: { user: { id: other } } });
+    expect((await tutorPOST(tutorRequest(input.materialId), tutorParams(input.materialId))).status).toBe(404);
+    const pending = await uploadPdf();
+    expect((await tutorPOST(tutorRequest(pending.materialId), tutorParams(pending.materialId))).status).toBe(409);
+    expect(tutorProvider.streamTutorAnswer).not.toHaveBeenCalled();
+  });
+  it("emits a safe error event after a partial stream and saves nothing", async () => {
+    const input = await readyTutorMaterial();
+    tutorProvider.streamTutorAnswer.mockImplementationOnce(async function* () {
+      yield { type: "delta", text: "Partial" };
+      throw new Error("private source and key");
+    });
+    const response = await tutorPOST(tutorRequest(input.materialId), tutorParams(input.materialId));
+    const text = await response.text();
+    expect(text).toContain("event: error");
+    expect(text).not.toContain("private source");
+    expect(text).not.toContain("event: done");
+    expect(await db.select().from(conversations)).toEqual([]);
+  });
+  it("cancels provider inference when the response reader disconnects", async () => {
+    const input = await readyTutorMaterial();
+    const response = await tutorPOST(tutorRequest(input.materialId), tutorParams(input.materialId));
+    const reader = response.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+    expect(tutorProvider.streamTutorAnswer.mock.calls[0][0].signal.aborted).toBe(true);
+    expect(await db.select().from(conversations)).toEqual([]);
   });
 });
