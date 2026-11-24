@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LogoMark } from "@/components/shared/logo";
+import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Authentication — Sivva",
@@ -29,7 +30,7 @@ export default function AuthLayout({
 
       <main className="flex flex-1 items-center justify-center px-4 py-4">
         <div className="w-full max-w-[400px]">
-          <div className="rounded-xl border border-border bg-surface p-6 shadow-[0_12px_48px_-20px_rgba(15,81,50,0.16)] dark:shadow-none">
+          <Card className="block p-6">
             <Link
               href="/"
               aria-label="Sivva home"
@@ -38,7 +39,7 @@ export default function AuthLayout({
               <LogoMark className="h-6 w-6" />
             </Link>
             {children}
-          </div>
+          </Card>
           <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
             Sivva. Learn smarter. Study better.
           </p>

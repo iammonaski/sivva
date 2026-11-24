@@ -67,10 +67,10 @@ export function UploadDocument({ className, dropzone = false }: { className?: st
           if (event.dataTransfer.files.length !== 1) { setError("Drop one PDF or DOCX at a time."); return; }
           void upload(event.dataTransfer.files[0]);
         }}
-        className={cn("flex flex-col items-center gap-3 rounded-xl border border-dashed bg-surface px-5 py-8 text-center", dragging ? "border-primary bg-accent" : "border-border")}
+        className={cn("flex flex-col items-center gap-5 rounded-xl border border-dashed bg-surface px-5 py-8 text-center transition-colors", dragging ? "border-primary bg-accent" : "border-input")}
       >
-        <UploadSimple size={28} className="text-primary" aria-hidden="true" />
-        <div><h2 className="text-lg font-medium">Bring your notes into focus</h2><p className="mt-1 text-sm text-muted-foreground">Drop a PDF or DOCX here, or choose a file. Up to 4 MB.</p></div>
+        <span className="flex size-11 items-center justify-center rounded-md bg-muted text-foreground"><UploadSimple size={23} weight="regular" aria-hidden="true" /></span>
+        <div><h3 className="text-sm font-medium">Drop your document here</h3><p className="mt-2 text-xs leading-5 text-muted-foreground">PDF or DOCX, up to 4 MB.</p></div>
         <Button disabled={uploading} onClick={() => input.current?.click()}>Choose document</Button>
       </div> : <Button className="gap-2" disabled={uploading} onClick={() => input.current?.click()}>
         <UploadSimple size={16} weight="bold" aria-hidden="true" />Upload document

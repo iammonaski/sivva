@@ -5,7 +5,7 @@ import { BookOpen, ChatCircleText, FileText, ListBullets } from "@phosphor-icons
 import { trpc } from "@/lib/trpc/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Tabs } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StudyText } from "@/components/shared/study-text";
 import { TutorChat } from "@/features/tutor/components/tutor-chat";
 
@@ -24,7 +24,13 @@ export function DocumentAnalysis({ materialId }: { materialId: string }) {
   const loading = tab === "topics" ? topics.isLoading : guide.isLoading;
   const error = tab === "topics" ? topics.error : guide.error;
 
-  return <Tabs tabs={tabs} value={tab} onValueChange={setTab} label="Study workspace">
+  return <Tabs value={tab} onValueChange={(value) => {
+    if (tabs.some((item) => item.value === value)) setTab(value as StudyTab);
+  }}>
+    <TabsList variant="line" aria-label="Study workspace" className="w-full flex-wrap justify-start border-b border-border group-data-[orientation=horizontal]/tabs:h-auto">
+      {tabs.map((item) => <TabsTrigger key={item.value} value={item.value} className="min-h-11 flex-none px-3 md:min-h-9 md:px-4">{item.icon}{item.label}</TabsTrigger>)}
+    </TabsList>
+    <TabsContent key={tab} value={tab} className="pt-6">
     {tab === "ask" ? <TutorChat materialId={materialId} /> : loading ? <section aria-busy="true" aria-label="Fetching study content" className="space-y-4 rounded-xl border border-border bg-surface p-6">
       <Skeleton className="h-6 w-1/3" /><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" />
     </section> : error ? <div role="alert" className="space-y-3"><p className="text-destructive">{error.message}</p><Button variant="outline" onClick={() => void (tab === "topics" ? topics.refetch() : guide.refetch())}>Retry</Button></div>
@@ -53,5 +59,6 @@ export function DocumentAnalysis({ materialId }: { materialId: string }) {
         </div>}
         <p className="text-xs text-muted-foreground">AI-generated from your document. Check important details against the original.</p>
       </section>}
+    </TabsContent>
   </Tabs>;
 }

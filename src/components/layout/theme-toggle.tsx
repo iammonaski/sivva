@@ -27,7 +27,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
       disabled={!mounted || !resolvedTheme}
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className={cn("h-11 w-11 shrink-0 text-muted-foreground", className)}
+      className={cn("shrink-0 text-muted-foreground", className)}
     >
       <Moon aria-hidden="true" weight="bold" className="dark:hidden" />
       <Sun aria-hidden="true" weight="bold" className="hidden dark:block" />

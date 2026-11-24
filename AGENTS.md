@@ -223,12 +223,20 @@ See `design/sivva-design-system.png` for the full reference. Summary:
 `1 · 2 · 4 · 6 · 8 · 12 · 16` (px)
 
 ### Border radius
-| Name | Value |
-|---|---|
-| SM | 4px |
-| MD | 8px |
-| LG | 12px |
-| XL | 16px |
+The image is the palette and typography reference. The rounded component system below is the current shape specification; radius tokens and component styles live in `src/app/globals.css` and `src/components/ui/`.
+
+| Name | Value | Use |
+|---|---|---|
+| SM | 8px | Small menu items and focus affordances |
+| MD | 12px | Buttons, inputs, navigation items |
+| LG | 16px | Secondary surfaces |
+| XL | 20px | Cards, upload zones, floating sidebar |
+
+### Component foundation and sizing
+- Use installed **shadcn/ui** components in `src/components/ui/`, with Radix behavior for menus, tabs and tooltips. Compose them rather than rebuilding those interactions.
+- Registry configuration lives in `components.json`. Add only needed components with `bunx --bun shadcn@latest add <component>`; keep the local `@/lib/utils` helper, Phosphor icons and Sivva theme tokens when adapting generated code.
+- Default buttons: **36px** high on desktop (`md` and up), **44px** on mobile. Small desktop buttons are 32px; large buttons are 40px. Avoid per-page overrides unless the content needs them.
+- Keep surfaces flat: no hover shadows, and use medium or regular weight for new interface titles.
 
 ### Design principles
 - **Focused** — Minimise distractions.

@@ -76,7 +76,7 @@ export default function LoginPage() {
       <Button
         type="button"
         variant="outline"
-        className="h-11 w-full gap-2.5 shadow-none sm:h-10"
+        className="w-full gap-2.5"
         onClick={handleGoogleSignIn}
         disabled={isGoogleLoading || isLoading}
         aria-busy={isGoogleLoading}
@@ -131,7 +131,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <Button type="submit" className="h-11 w-full shadow-none sm:h-10" disabled={isLoading || isGoogleLoading}>
+        <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
           {isLoading && <CircleNotch aria-hidden="true" className="animate-spin motion-reduce:animate-none" />}
           Sign in
         </Button>

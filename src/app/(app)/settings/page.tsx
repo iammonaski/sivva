@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { User, SignOut } from "@phosphor-icons/react";
 
 export default function SettingsPage() {
@@ -20,7 +21,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
           Account Settings
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -28,8 +29,8 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-foreground">
+      <Card className="block p-6">
+        <h2 className="text-base font-medium text-foreground">
           Profile Information
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -53,7 +54,7 @@ export default function SettingsPage() {
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-sm font-medium text-foreground">
                     {session.user.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -79,7 +80,7 @@ export default function SettingsPage() {
             </p>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
