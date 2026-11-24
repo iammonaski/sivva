@@ -1,17 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useSyncExternalStore } from "react";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useSession, signOut } from "@/lib/auth/auth-client";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 import {
-  BookBookmark,
   SquaresFour,
   FolderSimple,
   Gear,
@@ -19,18 +12,84 @@ import {
   User,
   CaretUpDown,
   SidebarSimple,
+  Sun,
+  Moon,
+  Desktop,
 } from "@phosphor-icons/react";
+import { useSession, signOut } from "@/lib/auth/auth-client";
+import { LogoMark } from "@/components/shared/logo";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import {
+  useSidebarPreference,
+  setSidebarCollapsed,
+} from "./sidebar-preference";
+import { cn } from "@/lib/utils";
 
 const WORKSPACE_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: SquaresFour },
   { label: "Library", href: "/library", icon: FolderSimple },
 ];
+const THEME_ITEMS = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Desktop },
+];
+const subscribeToHydration = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+function NavigationFeedback() {
+  const { pending } = useLinkStatus();
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-primary/40",
+          pending ? "animate-pulse motion-reduce:animate-none" : "opacity-0",
+        )}
+      />
+      {pending && (
+        <span role="status" className="sr-only">
+          Opening page
+        </span>
+      )}
+    </>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, isPending } = useSession();
-  const [collapsed, setCollapsed] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
+  const collapsed = useSidebarPreference();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
 
@@ -50,101 +109,255 @@ export function Sidebar() {
   }
 
   function navigationItem(item: (typeof WORKSPACE_ITEMS)[number]) {
-    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    const active =
+      pathname === item.href || pathname.startsWith(`${item.href}/`);
     const Icon = item.icon;
     return (
       <Tooltip key={item.href}>
-      <TooltipTrigger asChild>
-      <Link
-        href={item.href}
-        aria-current={active ? "page" : undefined}
-        aria-label={item.label}
-        className={cn(
-          "group relative flex min-h-11 flex-1 items-center justify-center gap-3 rounded-md px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:flex-none md:justify-start",
-          active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          collapsed && "md:justify-center md:px-0",
+        <TooltipTrigger asChild>
+          <Link
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            aria-label={item.label}
+            className={cn(
+              "relative flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-md px-2 text-[13px] leading-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:h-[38px] md:min-h-0 md:flex-none md:justify-start md:gap-0 md:px-0",
+              active
+                ? "bg-accent font-medium text-accent-foreground"
+                : "font-normal text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+            )}
+          >
+            <span className="flex shrink-0 items-center justify-center md:w-[38px]">
+              <Icon size={18} weight="regular" aria-hidden="true" />
+            </span>
+            <span className={cn("truncate md:pr-3", collapsed && "md:hidden")}>
+              {item.label}
+            </span>
+            <NavigationFeedback />
+          </Link>
+        </TooltipTrigger>
+        {collapsed && (
+          <TooltipContent
+            side="right"
+            sideOffset={10}
+            className="hidden md:block"
+          >
+            {item.label}
+          </TooltipContent>
         )}
-      >
-        {active && <span aria-hidden="true" className="absolute inset-y-3 left-0 hidden w-0.5 rounded-full bg-primary md:block" />}
-        <Icon size={20} weight={active ? "fill" : "regular"} aria-hidden="true" className="shrink-0" />
-        <span className={cn(collapsed && "md:hidden")}>{item.label}</span>
-      </Link>
-      </TooltipTrigger>
-      {collapsed && <TooltipContent side="right" sideOffset={12} className="hidden md:block">{item.label}</TooltipContent>}
       </Tooltip>
     );
   }
 
   return (
     <TooltipProvider delayDuration={300}>
-    <aside className={cn(
-      "relative z-10 flex shrink-0 flex-col rounded-xl border border-border bg-surface md:h-full",
-      collapsed ? "md:w-20" : "md:w-60",
-    )}>
-      <div className={cn("flex items-center gap-3 p-4 md:pb-8", collapsed && "md:flex-col md:gap-4 md:px-3")}>
-        <Link href="/dashboard" aria-label="Sivva dashboard" className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <BookBookmark size={23} weight="regular" aria-hidden="true" />
-          </span>
-          <span className={cn("text-lg font-medium tracking-tight", collapsed && "md:hidden")}>Sivva</span>
-        </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("ml-auto hidden size-8 text-muted-foreground md:inline-flex", collapsed && "md:ml-0")}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!collapsed}
-          onClick={() => setCollapsed(!collapsed)}
+      <aside
+        aria-label="Workspace sidebar"
+        data-collapsed={collapsed}
+        className={cn(
+          "relative z-10 flex shrink-0 flex-col rounded-xl border border-border bg-surface transition-[width] duration-200 ease-out motion-reduce:transition-none md:h-full",
+          collapsed ? "md:w-16" : "md:w-56",
+        )}
+      >
+        <div className="relative flex h-[72px] shrink-0 items-center px-3">
+          <Link
+            href="/dashboard"
+            aria-label="Sivva dashboard"
+            className={cn(
+              "flex min-w-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              collapsed && "md:invisible",
+            )}
+          >
+            <span className="flex w-[38px] shrink-0 items-center justify-center">
+              <LogoMark className="size-7 text-primary" />
+            </span>
+            <span
+              className={cn(
+                "ml-1 text-base font-medium tracking-tight",
+                collapsed && "md:hidden",
+              )}
+            >
+              Sivva
+            </span>
+          </Link>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={cn(
+                  "absolute top-5 hidden size-8 text-muted-foreground md:inline-flex md:size-8",
+                  collapsed ? "left-[15px]" : "right-3",
+                )}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                aria-expanded={!collapsed}
+                aria-controls="workspace-navigation"
+                onClick={() => setSidebarCollapsed(!collapsed)}
+              >
+                <SidebarSimple className="size-4" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={10}>
+              {collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        <nav
+          id="workspace-navigation"
+          aria-label="Main navigation"
+          className="flex gap-1 px-3 pb-3 md:block md:flex-1 md:space-y-1 md:overflow-y-auto"
         >
-          <SidebarSimple size={18} aria-hidden="true" />
-        </Button>
-        <div className="ml-auto md:hidden"><ThemeToggle /></div>
-      </div>
+          {WORKSPACE_ITEMS.map(navigationItem)}
+        </nav>
 
-      <nav aria-label="Main navigation" className="flex gap-1 px-2 pb-2 md:block md:flex-1 md:space-y-1 md:px-3">
-        <p className={cn("mb-3 hidden px-3 text-xs text-muted-foreground md:block", collapsed && "md:sr-only")}>Workspace</p>
-        {WORKSPACE_ITEMS.map(navigationItem)}
-        <div className="flex flex-1 md:hidden">{navigationItem({ label: "Settings", href: "/settings", icon: Gear })}</div>
-      </nav>
-
-      <div className={cn("border-t border-border p-3", collapsed && "md:px-3")}>
-        <div className="mb-4 hidden md:block">
-          <p className={cn("mb-2 px-3 text-xs text-muted-foreground", collapsed && "sr-only")}>Account</p>
-          {navigationItem({ label: "Settings", href: "/settings", icon: Gear })}
-          <div className={cn("mt-1 flex items-center justify-between pl-3", collapsed && "justify-center pl-0")}>
-            <span className={cn("text-sm text-muted-foreground", collapsed && "hidden")}>Appearance</span>
-            <ThemeToggle />
+        <div className="shrink-0 px-3 pb-3">
+          <div className="border-t border-border pt-3">
+            {isPending ? (
+              <div
+                aria-busy="true"
+                aria-label="Fetching your profile"
+                className="flex h-11 items-center md:h-[38px]"
+              >
+                <span className="flex w-[38px] shrink-0 justify-center">
+                  <Skeleton className="size-7 rounded-md" />
+                </span>
+                <Skeleton
+                  className={cn("ml-2 h-3 w-24", collapsed && "md:hidden")}
+                />
+              </div>
+            ) : session?.user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    aria-label="Open profile menu"
+                    className="h-11 w-full justify-start gap-0 px-0 text-left font-normal md:h-[38px] md:px-0"
+                  >
+                    <span className="flex w-[38px] shrink-0 justify-center">
+                      <span className="flex size-7 items-center justify-center rounded-md bg-muted text-xs font-medium text-foreground">
+                        {session.user.name?.charAt(0).toUpperCase() || (
+                          <User className="size-4" aria-hidden="true" />
+                        )}
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        "ml-1 min-w-0 flex-1 truncate text-[13px]",
+                        collapsed && "md:hidden",
+                      )}
+                    >
+                      {session.user.name || "Student"}
+                    </span>
+                    <CaretUpDown
+                      className={cn(
+                        "mr-2 ml-2 size-3.5 text-muted-foreground",
+                        collapsed && "md:hidden",
+                      )}
+                      aria-hidden="true"
+                    />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  side="top"
+                  align="start"
+                  sideOffset={10}
+                  className="w-56"
+                >
+                  <DropdownMenuLabel className="px-3 py-2">
+                    <span className="block truncate text-[13px] font-medium">
+                      {session.user.name || "Student"}
+                    </span>
+                    <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
+                      {session.user.email}
+                    </span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="min-h-11 px-3 text-[13px] md:min-h-8">
+                    <Link href="/settings" aria-current={pathname === "/settings" || pathname.startsWith("/settings/") ? "page" : undefined}>
+                      <Gear className="size-4" aria-hidden="true" />Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger
+                      disabled={!mounted || !theme}
+                      className="min-h-11 px-3 text-[13px] md:min-h-8"
+                    >
+                      <Sun
+                        className="size-4 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      Appearance
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent
+                        sideOffset={2}
+                        className="w-28 min-w-0"
+                      >
+                        <DropdownMenuRadioGroup
+                          value={mounted ? theme : undefined}
+                          onValueChange={(value) => {
+                            if (
+                              THEME_ITEMS.some((item) => item.value === value)
+                            )
+                              setTheme(value);
+                          }}
+                        >
+                          {THEME_ITEMS.map(({ value, label, icon: Icon }) => (
+                            <DropdownMenuRadioItem
+                              key={value}
+                              value={value}
+                              className="min-h-11 gap-1 pl-5 text-xs [&>span]:left-1 [&>span]:size-2 md:min-h-0 md:py-1"
+                            >
+                              <Icon
+                                className="size-3.5 text-muted-foreground"
+                                aria-hidden="true"
+                              />
+                              {label}
+                            </DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={signingOut}
+                    className="min-h-11 px-3 text-[13px] md:min-h-8"
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      void handleSignOut();
+                    }}
+                  >
+                    <SignOut className="size-4" aria-hidden="true" />
+                    Sign out
+                  </DropdownMenuItem>
+                  {signingOut && (
+                    <div
+                      role="status"
+                      aria-label="Signing out"
+                      className="px-3 py-2"
+                    >
+                      <Skeleton className="h-1 w-full" />
+                    </div>
+                  )}
+                  {signOutError && (
+                    <p
+                      role="alert"
+                      className="px-3 py-2 text-xs text-destructive"
+                    >
+                      Could not sign out. Try again.
+                    </p>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button asChild variant="ghost" className="w-full text-[13px]">
+                <Link href="/login">Sign in</Link>
+              </Button>
+            )}
           </div>
         </div>
-        {isPending ? (
-          <div className="flex items-center gap-3" aria-busy="true" aria-label="Fetching your profile">
-            <Skeleton className="size-9 shrink-0 rounded-md" />
-            <div className={cn("flex-1 space-y-2", collapsed && "md:hidden")}><Skeleton className="h-3 w-24" /><Skeleton className="h-3 w-full" /></div>
-          </div>
-        ) : session?.user ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" aria-label="Open profile menu" className={cn("h-auto min-h-11 w-full justify-start gap-3 p-1 text-left md:h-auto md:min-h-11 md:p-1", collapsed && "md:justify-center")}>
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-medium">
-                  {session.user.name?.charAt(0).toUpperCase() || <User size={18} aria-hidden="true" />}
-                </span>
-                <span className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
-                  <span className="block truncate text-sm font-medium">{session.user.name || "Student"}</span>
-                  <span className="block truncate text-xs font-normal text-muted-foreground">{session.user.email}</span>
-                </span>
-                <CaretUpDown size={16} className={cn("shrink-0 text-muted-foreground", collapsed && "md:hidden")} aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-56">
-              <DropdownMenuItem asChild><Link href="/settings"><Gear size={18} aria-hidden="true" />Settings</Link></DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled={signingOut} onSelect={(event) => { event.preventDefault(); void handleSignOut(); }}><SignOut size={18} aria-hidden="true" />Sign out</DropdownMenuItem>
-              {signOutError && <p role="alert" className="px-3 py-2 text-xs text-destructive">Could not sign out. Try again.</p>}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : <Link href="/login" className="block rounded-md px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring">Sign in</Link>}
-      </div>
-    </aside>
+      </aside>
     </TooltipProvider>
   );
 }

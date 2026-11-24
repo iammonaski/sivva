@@ -10,7 +10,7 @@ export default function AppLayout({
   return (
     <div className="flex min-h-dvh flex-col gap-4 bg-background p-4 md:h-dvh md:flex-row md:gap-0 md:overflow-hidden">
       <a href="#main-content" className="sr-only z-50 rounded-md bg-primary p-3 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to content</a>
-      <React.Suspense fallback={<Skeleton className="h-40 w-full shrink-0 rounded-md md:h-full md:w-60" />}>
+      <React.Suspense fallback={<Skeleton className="h-40 w-full shrink-0 rounded-xl md:h-full md:w-56" />}>
         <Sidebar />
       </React.Suspense>
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 outline-none md:overflow-y-auto">
