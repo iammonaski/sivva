@@ -30,9 +30,9 @@ export default function DashboardPage() {
   const otherMaterials = stats.data?.recentMaterials.slice(1) ?? [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 md:-mt-8">
       <header className="space-y-6">
-        <p className="text-sm text-muted-foreground">Dashboard</p>
+        <p className="text-[13px] leading-5 text-muted-foreground md:flex md:h-[72px] md:items-center">Dashboard</p>
         <div>
           <h1 className="text-2xl font-medium tracking-tight sm:text-3xl sm:leading-10">
             {sessionPending ? <Skeleton className="h-10 w-64 max-w-full" /> : `Welcome back, ${userName}`}
