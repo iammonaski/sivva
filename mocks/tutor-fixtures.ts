@@ -1,4 +1,5 @@
 import type { RetrievedSource, TutorAnswer, TutorEvent } from "@/features/tutor/schemas/tutor";
+import { FinishReason, GenerateContentResponse } from "@google/genai";
 
 export function createTutorSources(): RetrievedSource[] {
   return [{ chunkId: "11111111-1111-4111-8111-111111111111", content: "Photosynthesis converts light into chemical energy.", pageNumber: 2, sectionHeading: null },
@@ -7,15 +8,16 @@ export function createTutorSources(): RetrievedSource[] {
 export function createTutorAnswer(overrides: Partial<TutorAnswer> = {}): TutorAnswer {
   return { answer: "Photosynthesis converts light into chemical energy [S1].", sourceIds: ["S1"], grounding: "source-grounded", ...overrides };
 }
-export function createTutorSse({ pieces, finishReason = "STOP", crlf = false }: {
-  pieces?: string[]; finishReason?: string; crlf?: boolean;
-} = {}) {
-  const nl = crlf ? "\r\n" : "\n";
+export function createTutorChunks({ pieces, finishReason = FinishReason.STOP }: {
+  pieces?: string[]; finishReason?: FinishReason;
+} = {}): GenerateContentResponse[] {
   const text = JSON.stringify(createTutorAnswer());
   const parts = pieces ?? [text.slice(0, 30), text.slice(30)];
-  return parts.map((part, index) => `data: ${JSON.stringify({ candidates: [{ index: 0,
-    content: { parts: [{ text: part }] }, ...(index === parts.length - 1 ? { finishReason } : {}),
-  }] })}${nl}${nl}`).join("");
+  return parts.map((part, index) => Object.assign(new GenerateContentResponse(), {
+    candidates: [{ index: 0, content: { parts: [{ text: part }] },
+      ...(index === parts.length - 1 ? { finishReason } : {}),
+    }],
+  }));
 }
 export function createBrowserTutorDone(): Extract<TutorEvent, { type: "done" }> {
   return { type: "done", conversationId: "33333333-3333-4333-8333-333333333333", message: {

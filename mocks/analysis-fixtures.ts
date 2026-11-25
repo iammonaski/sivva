@@ -1,4 +1,5 @@
 import type { DocumentAnalysis } from "@/lib/ai/schemas/document-analysis";
+import { FinishReason, BlockedReason, GenerateContentResponse } from "@google/genai";
 
 export function createAnalysis(): DocumentAnalysis {
   return {
@@ -15,10 +16,10 @@ export function createAnalysis(): DocumentAnalysis {
 }
 
 export function createGeminiResponse({
-  output = createAnalysis(), finishReason = "STOP", blockReason,
-}: { output?: unknown; finishReason?: string; blockReason?: string } = {}) {
-  return {
+  output = createAnalysis(), finishReason = FinishReason.STOP, blockReason,
+}: { output?: unknown; finishReason?: FinishReason; blockReason?: BlockedReason } = {}) {
+  return Object.assign(new GenerateContentResponse(), {
     ...(blockReason ? { promptFeedback: { blockReason } } : {}),
     candidates: [{ finishReason, content: { parts: [{ text: JSON.stringify(output) }] } }],
-  };
+  });
 }

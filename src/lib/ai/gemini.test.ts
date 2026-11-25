@@ -1,73 +1,76 @@
-import { installGeminiFetch, geminiFetch, controlGeminiTimeout } from "../../../mocks/gemini-http";
+import { resetGenai, genai, controlGeminiTimeout } from "../../../mocks/genai";
 import { createAnalysis, createGeminiResponse } from "../../../mocks/analysis-fixtures";
+import { ApiError, BlockedReason, FinishReason, GenerateContentResponse } from "@google/genai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateDocumentAnalysis, GEMINI_TIMEOUT_MS, MAX_ANALYSIS_CHARACTERS } from "./gemini";
 import { ANALYSIS_SYSTEM_PROMPT } from "./prompts/document-analysis";
+import { GeminiResponseTooLargeError } from "./gemini-client";
 
-beforeEach(installGeminiFetch);
+beforeEach(resetGenai);
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-describe("Gemini structured analysis client", () => {
-  it("uses authenticated REST, a system prompt, schema and timeout, returning validated JSON", async () => {
-    geminiFetch.mockResolvedValue(Response.json(createGeminiResponse()));
+describe("Gemini structured analysis SDK client", () => {
+  it("uses the configured model, system prompt, schema and timeout, returning validated JSON", async () => {
+    genai.models.generateContent.mockResolvedValue(createGeminiResponse());
     expect(await generateDocumentAnalysis({ rawText: "Lecture source" })).toEqual(createAnalysis());
-    const [url, options] = geminiFetch.mock.calls[0];
-    expect(url).toMatch(/^https:\/\/generativelanguage.googleapis.com\/v1beta\/models\/gemini-.*:generateContent$/);
-    expect(url).not.toContain("test_gemini_key");
-    expect(options?.headers).toMatchObject({ "x-goog-api-key": "test_gemini_key" });
-    expect(options?.cache).toBe("no-store");
-    expect(options?.signal).toBeInstanceOf(AbortSignal);
-    const request = JSON.parse(String(options?.body));
-    expect(request.systemInstruction.parts[0].text).toBe(ANALYSIS_SYSTEM_PROMPT);
-    expect(JSON.parse(request.contents[0].parts[0].text)).toEqual({ sourceDocument: "Lecture source" });
-    expect(request.generationConfig).toMatchObject({ responseMimeType: "application/json", responseJsonSchema: { type: "object", required: ["topics", "studyGuide"] } });
+    const request = genai.models.generateContent.mock.calls[0][0];
+    expect(request.model).toMatch(/^gemini-/);
+    expect(request.config).toMatchObject({
+      systemInstruction: ANALYSIS_SYSTEM_PROMPT, responseMimeType: "application/json",
+      responseJsonSchema: { type: "object", required: ["topics", "studyGuide"] },
+      maxOutputTokens: 16_384, httpOptions: { timeout: GEMINI_TIMEOUT_MS }, abortSignal: expect.any(AbortSignal),
+    });
+    expect(request.contents).toEqual([{ role: "user", parts: [{ text: JSON.stringify({ sourceDocument: "Lecture source" }) }] }]);
   });
-  it.each(["", " ", "x".repeat(MAX_ANALYSIS_CHARACTERS + 1)])("rejects empty/oversize source before network calls: %#", async (rawText) => {
+  it.each(["", " ", "x".repeat(MAX_ANALYSIS_CHARACTERS + 1)])("rejects empty/oversize input before the SDK call: %#", async (rawText) => {
     await expect(generateDocumentAnalysis({ rawText })).rejects.toMatchObject({ code: "INPUT_TOO_LARGE" });
-    expect(geminiFetch).not.toHaveBeenCalled();
+    expect(genai.models.generateContent).not.toHaveBeenCalled();
   });
-  it.each([401, 429, 500])("sanitizes provider HTTP %s errors", async (status) => {
-    geminiFetch.mockResolvedValue(new Response("private text and API key", { status }));
+  it.each([401, 429, 500])("sanitizes SDK API %s errors", async (status) => {
+    genai.models.generateContent.mockRejectedValue(new ApiError({ status, message: "private source and key" }));
     await expect(generateDocumentAnalysis({ rawText: "Lecture" })).rejects.toMatchObject({ code: "PROVIDER_ERROR", message: expect.not.stringContaining("private") });
+    expect(genai.models.generateContent).toHaveBeenCalledTimes(1);
   });
   it("sanitizes network failures", async () => {
-    geminiFetch.mockRejectedValue(new Error("private source text"));
+    genai.models.generateContent.mockRejectedValue(new Error("private source text"));
     await expect(generateDocumentAnalysis({ rawText: "Lecture" })).rejects.toMatchObject({ code: "PROVIDER_ERROR", message: expect.not.stringContaining("private") });
   });
-  it("cancels a stalled request through its configured timeout signal", async () => {
+  it("cancels a stalled SDK request through its timeout signal", async () => {
     const { controller, timeout } = controlGeminiTimeout();
-    geminiFetch.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
-      options?.signal?.addEventListener("abort", () => reject(options.signal?.reason));
+    genai.models.generateContent.mockImplementation(({ config }) => new Promise((_resolve, reject) => {
+      config?.abortSignal?.addEventListener("abort", () => reject(config.abortSignal?.reason));
     }));
     const assertion = expect(generateDocumentAnalysis({ rawText: "Lecture" })).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
     expect(timeout).toHaveBeenCalledWith(GEMINI_TIMEOUT_MS);
     controller.abort(new DOMException("Timed out", "TimeoutError"));
     await assertion;
   });
-  it.each(["MAX_TOKENS", "SAFETY", "RECITATION"])("rejects %s output rather than storing a partial analysis", async (finishReason) => {
-    geminiFetch.mockResolvedValue(Response.json(createGeminiResponse({ finishReason })));
+  it.each([FinishReason.MAX_TOKENS, FinishReason.SAFETY, FinishReason.RECITATION])("rejects %s rather than storing partial analysis", async (finishReason) => {
+    genai.models.generateContent.mockResolvedValue(createGeminiResponse({ finishReason }));
     await expect(generateDocumentAnalysis({ rawText: "Lecture" })).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
   });
   it.each([
-    { promptFeedback: { blockReason: "SAFETY" } }, {},
-    createGeminiResponse({ output: { topics: [] } }),
-    createGeminiResponse({ blockReason: "SAFETY" }),
-    { candidates: [{ finishReason: "STOP", content: { parts: [{ text: "```json invalid```" }] } }] },
-  ])("rejects malformed, blocked, or schema-invalid responses: %#", async (response) => {
-    geminiFetch.mockResolvedValue(Response.json(response));
+    Object.assign(new GenerateContentResponse(), { promptFeedback: { blockReason: BlockedReason.SAFETY } }),
+    new GenerateContentResponse(), createGeminiResponse({ output: { topics: [] } }),
+    createGeminiResponse({ blockReason: BlockedReason.SAFETY }),
+    Object.assign(new GenerateContentResponse(), { candidates: [{ finishReason: FinishReason.STOP, content: { parts: [{ text: "```json invalid```" }] } }] }),
+  ])("rejects blocked, incomplete, or schema-invalid output: %#", async (response) => {
+    genai.models.generateContent.mockResolvedValue(response);
     await expect(generateDocumentAnalysis({ rawText: "Lecture" })).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
   });
-  it("ignores thought parts and joins structured output parts", async () => {
+  it("ignores thoughts, joins text parts, and uses only the first candidate", async () => {
     const text = JSON.stringify(createAnalysis());
-    geminiFetch.mockResolvedValue(Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [
-      { text: "private reasoning", thought: true }, { text: text.slice(0, 20) }, { text: text.slice(20) },
-    ] } }] }));
+    const response = Object.assign(new GenerateContentResponse(), { candidates: [
+      { finishReason: FinishReason.STOP, content: { parts: [
+        { text: "private reasoning", thought: true }, { text: text.slice(0, 20) }, { text: text.slice(20) },
+      ] } },
+      { finishReason: FinishReason.SAFETY },
+    ] });
+    genai.models.generateContent.mockResolvedValue(response);
     expect(await generateDocumentAnalysis({ rawText: "Lecture" })).toEqual(createAnalysis());
   });
-  it("rejects malformed envelopes and bounded response overflow", async () => {
-    geminiFetch.mockResolvedValueOnce(new Response("not JSON"));
-    await expect(generateDocumentAnalysis({ rawText: "Lecture" })).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
-    geminiFetch.mockResolvedValueOnce(new Response("x".repeat(1_000_001)));
+  it("maps the response byte guard to invalid output", async () => {
+    genai.models.generateContent.mockRejectedValue(new GeminiResponseTooLargeError());
     await expect(generateDocumentAnalysis({ rawText: "Lecture" })).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
   });
 });

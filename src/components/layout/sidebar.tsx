@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import {
   SquaresFour,
   FolderSimple,
+  FileText,
   Gear,
   SignOut,
   User,
@@ -17,6 +18,7 @@ import {
   Desktop,
 } from "@phosphor-icons/react";
 import { useSession, signOut } from "@/lib/auth/auth-client";
+import { trpc } from "@/lib/trpc/client";
 import { LogoMark } from "@/components/shared/logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -90,6 +92,9 @@ export function Sidebar() {
     getServerSnapshot,
   );
   const collapsed = useSidebarPreference();
+  const recentDocuments = trpc.dashboard.getStats.useQuery(undefined, {
+    enabled: Boolean(session?.user) && !collapsed,
+  });
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
 
@@ -154,7 +159,7 @@ export function Sidebar() {
         aria-label="Workspace sidebar"
         data-collapsed={collapsed}
         className={cn(
-          "relative z-10 flex shrink-0 flex-col rounded-xl border border-border bg-surface transition-[width] duration-200 ease-out motion-reduce:transition-none md:h-full",
+          "relative z-10 flex shrink-0 flex-col rounded-xl border border-border bg-surface/90 transition-[width] duration-200 ease-out motion-reduce:transition-none md:h-full dark:bg-surface/80",
           collapsed ? "md:w-16" : "md:w-56",
         )}
       >
@@ -202,13 +207,87 @@ export function Sidebar() {
           </Tooltip>
         </div>
 
-        <nav
-          id="workspace-navigation"
-          aria-label="Main navigation"
-          className="flex gap-1 px-3 pb-3 md:block md:flex-1 md:space-y-1 md:overflow-y-auto"
-        >
-          {WORKSPACE_ITEMS.map(navigationItem)}
-        </nav>
+        <div aria-hidden="true" className="mx-3 mb-3 border-t border-border/70" />
+
+        <div className="min-h-0 px-3 pb-3 md:flex-1 md:overflow-y-auto">
+          <nav
+            id="workspace-navigation"
+            aria-label="Main navigation"
+            className="flex gap-1 md:block md:space-y-1"
+          >
+            {WORKSPACE_ITEMS.map(navigationItem)}
+          </nav>
+
+          {!collapsed && (isPending || session?.user) && (
+            <section
+              aria-labelledby="recent-documents-heading"
+              className="mt-7 hidden md:block"
+            >
+              <h2
+                id="recent-documents-heading"
+                className="mb-2 px-2 text-xs font-normal text-muted-foreground"
+              >
+                Recent documents
+              </h2>
+              {isPending || recentDocuments.isLoading ? (
+                <div aria-busy="true" aria-label="Fetching recent documents" className="space-y-1">
+                  {["w-28", "w-24", "w-32"].map((width) => (
+                    <div key={width} className="flex h-8 items-center gap-2 px-2">
+                      <Skeleton className="size-4 shrink-0" />
+                      <Skeleton className={cn("h-3", width)} />
+                    </div>
+                  ))}
+                </div>
+              ) : recentDocuments.error ? (
+                <div className="px-2">
+                  <p role="status" className="text-xs leading-5 text-muted-foreground">
+                    Recent documents couldn’t load.
+                  </p>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="px-0 md:px-0"
+                    onClick={() => void recentDocuments.refetch()}
+                  >
+                    Try again
+                  </Button>
+                </div>
+              ) : recentDocuments.data?.recentMaterials.length ? (
+                <ul className="space-y-1">
+                  {recentDocuments.data.recentMaterials.slice(0, 4).map((material) => {
+                    const href = `/library/${material.id}`;
+                    const active = pathname === href || pathname.startsWith(`${href}/`);
+                    return (
+                      <li key={material.id}>
+                        <Link
+                          href={href}
+                          aria-current={active ? "page" : undefined}
+                          title={material.title}
+                          className={cn(
+                            "relative flex h-8 min-w-0 items-center rounded-md text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                            active
+                              ? "bg-accent font-medium text-accent-foreground"
+                              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                          )}
+                        >
+                          <span className="flex w-[38px] shrink-0 justify-center">
+                            <FileText size={16} weight="regular" aria-hidden="true" />
+                          </span>
+                          <span className="truncate pr-2">{material.title}</span>
+                          <NavigationFeedback />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="px-2 text-xs leading-5 text-muted-foreground">
+                  Your documents will appear here.
+                </p>
+              )}
+            </section>
+          )}
+        </div>
 
         <div className="shrink-0 px-3 pb-3">
           <div className="border-t border-border pt-3">
