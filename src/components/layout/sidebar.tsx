@@ -159,7 +159,7 @@ export function Sidebar() {
         aria-label="Workspace sidebar"
         data-collapsed={collapsed}
         className={cn(
-          "relative z-10 flex shrink-0 flex-col rounded-xl border border-border bg-surface/90 transition-[width] duration-200 ease-out motion-reduce:transition-none md:h-full dark:bg-surface/80",
+          "relative z-10 flex shrink-0 flex-col rounded-xl border border-border bg-surface transition-[width] duration-200 ease-out motion-reduce:transition-none md:h-full",
           collapsed ? "md:w-16" : "md:w-56",
         )}
       >
