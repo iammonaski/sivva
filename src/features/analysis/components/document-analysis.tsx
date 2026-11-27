@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, ChatCircleText, FileText, ListBullets } from "@phosphor-icons/react";
+import { BookOpen, ChatCircleText, FileText, ListBullets, Video } from "@phosphor-icons/react";
+import { TopicResources } from "@/features/resources/components/topic-resources";
 import { trpc } from "@/lib/trpc/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -9,20 +10,21 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StudyText } from "@/components/shared/study-text";
 import { TutorChat } from "@/features/tutor/components/tutor-chat";
 
-type StudyTab = "overview" | "topics" | "guide" | "ask";
 const tabs = [
   { value: "overview", label: "Overview", icon: <FileText size={18} aria-hidden="true" /> },
   { value: "topics", label: "Topics", icon: <ListBullets size={18} aria-hidden="true" /> },
   { value: "guide", label: "Study Guide", icon: <BookOpen size={18} aria-hidden="true" /> },
   { value: "ask", label: "Ask", icon: <ChatCircleText size={18} aria-hidden="true" /> },
+  { value: "resources", label: "Resources", icon: <Video size={18} aria-hidden="true" /> },
 ] as const;
+type StudyTab = (typeof tabs)[number]["value"];
 
 export function DocumentAnalysis({ materialId }: { materialId: string }) {
   const [tab, setTab] = useState<StudyTab>("overview");
   const guide = trpc.analysis.getStudyGuide.useQuery({ id: materialId });
   const topics = trpc.analysis.getTopics.useQuery({ id: materialId });
-  const loading = tab === "topics" ? topics.isLoading : guide.isLoading;
-  const error = tab === "topics" ? topics.error : guide.error;
+  const activeQuery = tab === "topics" || tab === "resources" ? topics : guide;
+  const { isLoading: loading, error } = activeQuery;
 
   return <Tabs value={tab} onValueChange={(value) => {
     if (tabs.some((item) => item.value === value)) setTab(value as StudyTab);
@@ -33,7 +35,8 @@ export function DocumentAnalysis({ materialId }: { materialId: string }) {
     <TabsContent key={tab} value={tab} className="pt-6">
     {tab === "ask" ? <TutorChat materialId={materialId} /> : loading ? <section aria-busy="true" aria-label="Fetching study content" className="space-y-4 rounded-xl border border-border bg-surface p-6">
       <Skeleton className="h-6 w-1/3" /><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" />
-    </section> : error ? <div role="alert" className="space-y-3"><p className="text-destructive">{error.message}</p><Button variant="outline" onClick={() => void (tab === "topics" ? topics.refetch() : guide.refetch())}>Retry</Button></div>
+    </section> : error ? <div role="alert" className="space-y-3"><p className="text-destructive">{error.message}</p><Button variant="outline" onClick={() => void activeQuery.refetch()}>Retry</Button></div>
+      : tab === "resources" ? <TopicResources materialId={materialId} topics={topics.data ?? []} />
       : tab !== "topics" && !guide.data ? <p role="alert" className="text-destructive">No study guide was found. Refresh or upload the document again.</p>
       : tab === "overview" ? <section className="rounded-xl border border-border bg-surface p-6 sm:p-8">
         <h2 className="mb-5 text-xl font-medium">Document overview</h2>
