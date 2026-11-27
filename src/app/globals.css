@@ -83,21 +83,21 @@
   --foreground: #EDEDED;
   --surface: #0A0A0A;
 
-  /* Brighter greens keep links and controls readable on dark surfaces. */
-  --primary: #83D3A5;
-  --primary-foreground: #10271B;
-  --secondary: #AACD72;
-  --secondary-foreground: #18231D;
-  --accent: #263C2E;
-  --accent-foreground: #B6E2C3;
+  /* Deepened greens so the theme reads richer on dark surfaces. */
+  --primary: #4BB07A;
+  --primary-foreground: #071A10;
+  --secondary: #8FB761;
+  --secondary-foreground: #101B12;
+  --accent: #1D3123;
+  --accent-foreground: #A5DFBB;
 
   --muted: #171717;
   --muted-foreground: #A1A1A1;
   --border: #292929;
   --input: #525252;
-  --ring: #83D3A5;
+  --ring: #4BB07A;
 
-  --success: #65D891;
+  --success: #4CCB7D;
   --warning: #F4C16B;
   --destructive: #FF8D8D;
   --destructive-foreground: #351212;

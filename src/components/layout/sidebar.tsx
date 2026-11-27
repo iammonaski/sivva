@@ -243,19 +243,12 @@ export function Sidebar() {
                 <ul className="space-y-1">
                   {recentDocuments.data.recentMaterials.slice(0, 4).map((material) => {
                     const href = `/library/${material.id}`;
-                    const active = pathname === href || pathname.startsWith(`${href}/`);
                     return (
                       <li key={material.id}>
                         <Link
                           href={href}
-                          aria-current={active ? "page" : undefined}
                           title={material.title}
-                          className={cn(
-                            "relative flex h-8 min-w-0 items-center rounded-md text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-                            active
-                              ? "bg-accent font-medium text-accent-foreground"
-                              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
-                          )}
+                          className="flex h-8 min-w-0 items-center rounded-md text-xs text-muted-foreground outline-none transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <span className="flex w-[38px] shrink-0 justify-center">
                             <FileText size={16} weight="regular" aria-hidden="true" />
