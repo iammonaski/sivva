@@ -16,7 +16,7 @@ export function UploadDocument({ className, dropzone = false }: { className?: st
   const utils = trpc.useUtils();
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null)
 
   async function upload(file: File) {
     if (busy.current) return;
