@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/shared/search-input";
 import { UploadDocument } from "@/features/materials/components/upload-document";
 import { MaterialStatus } from "@/features/materials/components/material-status";
 
@@ -23,9 +23,17 @@ export default function LibraryPage() {
   return <div className="space-y-6">
     <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Course library</h1><p className="mt-2 text-sm text-muted-foreground">Your notes, documents, and study workspaces.</p></div><UploadDocument /></header>
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="w-full sm:max-w-sm"><label htmlFor="library-search" className="sr-only">Search materials</label><Input id="library-search" type="search" placeholder="Search your materials" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
+      <SearchInput
+        id="library-search"
+        label="Search materials"
+        value={search}
+        onValueChange={setSearch}
+        placeholder="Search your materials"
+        className="w-full sm:max-w-sm"
+      />
       <div className="flex gap-1" role="group" aria-label="Library layout"><Button variant={view === "grid" ? "accent" : "ghost"} size="icon" aria-label="Grid view" aria-pressed={view === "grid"} onClick={() => setView("grid")}><SquaresFour aria-hidden="true" /></Button><Button variant={view === "list" ? "accent" : "ghost"} size="icon" aria-label="List view" aria-pressed={view === "list"} onClick={() => setView("list")}><ListBullets aria-hidden="true" /></Button></div>
     </div>
+    <div aria-hidden="true" className="h-px w-full bg-border" />
     {query.error ? <div role="alert" className="space-y-3"><p className="text-sm text-destructive">{query.error.message}</p><Button variant="outline" onClick={() => void query.refetch()}>Retry library</Button></div> : query.isLoading ? <div aria-busy="true" aria-label="Fetching materials" className={view === "grid" ? "grid gap-4 md:grid-cols-2 lg:grid-cols-3" : "space-y-3"}><Skeleton className={view === "grid" ? "h-52 rounded-xl" : "h-28 rounded-xl"} /><Skeleton className={view === "grid" ? "h-52 rounded-xl" : "h-28 rounded-xl"} /><Skeleton className={view === "grid" ? "h-52 rounded-xl" : "h-28 rounded-xl"} /></div>
       : materials?.length ? <ul className={view === "grid" ? "grid gap-4 md:grid-cols-2 lg:grid-cols-3" : "space-y-3"}>{materials.map((material) => <li key={material.id} className="h-full"><Card className={`h-full gap-0 p-5 ${view === "list" ? "flex-row flex-wrap items-center justify-between gap-4" : "flex-col"}`}>
         <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><Badge>{material.fileType.toUpperCase()}</Badge><MaterialStatus status={material.status} /></div>

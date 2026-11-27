@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, MagnifyingGlass, Moon, Sun } from "@phosphor-icons/react";
+import { Bell, Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/shared/search-input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +11,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 
 export function DashboardNavbar({
   search,
@@ -23,25 +23,14 @@ export function DashboardNavbar({
 
   return (
     <header className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:h-[72px]">
-      <div role="search" className="relative min-w-0 md:w-[90%]">
-        <label htmlFor="dashboard-search" className="sr-only">
-          Search recent materials
-        </label>
-        <MagnifyingGlass
-          size={17}
-          className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <Input
-          id="dashboard-search"
-          type="search"
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search recent materials"
-          enterKeyHint="search"
-          className="border-transparent bg-muted/60 pl-9 text-base focus-visible:border-primary/60 focus-visible:ring-0 md:text-[13px] [@media(pointer:coarse)]:text-base"
-        />
-      </div>
+      <SearchInput
+        id="dashboard-search"
+        label="Search recent materials"
+        value={search}
+        onValueChange={onSearchChange}
+        placeholder="Search recent materials"
+        className="md:w-[90%]"
+      />
 
       <div className="flex items-center gap-3">
         <Button
