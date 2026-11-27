@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -61,26 +61,6 @@ const subscribeToHydration = () => () => {};
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 
-function NavigationFeedback() {
-  const { pending } = useLinkStatus();
-  return (
-    <>
-      <span
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-primary/40",
-          pending ? "animate-pulse motion-reduce:animate-none" : "opacity-0",
-        )}
-      />
-      {pending && (
-        <span role="status" className="sr-only">
-          Opening page
-        </span>
-      )}
-    </>
-  );
-}
-
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -125,7 +105,7 @@ export function Sidebar() {
             aria-current={active ? "page" : undefined}
             aria-label={item.label}
             className={cn(
-              "relative flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-md px-2 text-[13px] leading-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:h-[38px] md:min-h-0 md:flex-none md:justify-start md:gap-0 md:px-0",
+              "relative flex size-11 shrink-0 items-center justify-center gap-2 rounded-md px-0 text-[13px] leading-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:h-[38px] md:w-full md:justify-start md:gap-0",
               active
                 ? "bg-accent font-medium text-accent-foreground"
                 : "font-normal text-muted-foreground hover:bg-muted/70 hover:text-foreground",
@@ -134,10 +114,14 @@ export function Sidebar() {
             <span className="flex shrink-0 items-center justify-center md:w-[38px]">
               <Icon size={18} weight="regular" aria-hidden="true" />
             </span>
-            <span className={cn("truncate md:pr-3", collapsed && "md:hidden")}>
+            <span
+              className={cn(
+                "hidden truncate md:inline md:pr-3",
+                collapsed && "md:hidden",
+              )}
+            >
               {item.label}
             </span>
-            <NavigationFeedback />
           </Link>
         </TooltipTrigger>
         {collapsed && (
@@ -159,11 +143,11 @@ export function Sidebar() {
         aria-label="Workspace sidebar"
         data-collapsed={collapsed}
         className={cn(
-          "relative z-10 flex shrink-0 flex-col rounded-xl border border-border bg-surface transition-[width] duration-200 ease-out motion-reduce:transition-none md:h-full",
+          "relative z-10 flex shrink-0 flex-row items-center gap-2 rounded-xl border border-border bg-surface px-2 py-1.5 transition-[width] duration-200 ease-out motion-reduce:transition-none max-md:sticky max-md:top-2 max-md:z-30 md:h-full md:flex-col md:items-stretch md:gap-0 md:p-0",
           collapsed ? "md:w-16" : "md:w-56",
         )}
       >
-        <div className="relative flex h-[72px] shrink-0 items-center px-3">
+        <div className="relative flex h-11 shrink-0 items-center px-1 md:h-[72px] md:px-3">
           <Link
             href="/dashboard"
             aria-label="Sivva dashboard"
@@ -207,13 +191,16 @@ export function Sidebar() {
           </Tooltip>
         </div>
 
-        <div aria-hidden="true" className="mx-3 mb-3 border-t border-border/70" />
+        <div
+          aria-hidden="true"
+          className="mx-3 mb-3 hidden border-t border-border/70 md:block"
+        />
 
-        <div className="min-h-0 px-3 pb-3 md:flex-1 md:overflow-y-auto">
+        <div className="ml-auto min-w-0 md:ml-0 md:min-h-0 md:flex-1 md:px-3 md:pb-3 md:overflow-y-auto">
           <nav
             id="workspace-navigation"
             aria-label="Main navigation"
-            className="flex gap-1 md:block md:space-y-1"
+            className="flex items-center gap-1 md:block md:space-y-1"
           >
             {WORKSPACE_ITEMS.map(navigationItem)}
           </nav>
@@ -274,7 +261,6 @@ export function Sidebar() {
                             <FileText size={16} weight="regular" aria-hidden="true" />
                           </span>
                           <span className="truncate pr-2">{material.title}</span>
-                          <NavigationFeedback />
                         </Link>
                       </li>
                     );
@@ -289,19 +275,22 @@ export function Sidebar() {
           )}
         </div>
 
-        <div className="shrink-0 px-3 pb-3">
-          <div className="border-t border-border pt-3">
+        <div className="shrink-0 md:px-3 md:pb-3">
+          <div className="md:border-t md:border-border md:pt-3">
             {isPending ? (
               <div
                 aria-busy="true"
                 aria-label="Fetching your profile"
                 className="flex h-11 items-center md:h-[38px]"
               >
-                <span className="flex w-[38px] shrink-0 justify-center">
+                <span className="flex w-11 shrink-0 justify-center md:w-[38px]">
                   <Skeleton className="size-7 rounded-md" />
                 </span>
                 <Skeleton
-                  className={cn("ml-2 h-3 w-24", collapsed && "md:hidden")}
+                  className={cn(
+                    "ml-2 hidden h-3 w-24 md:block",
+                    collapsed && "md:hidden",
+                  )}
                 />
               </div>
             ) : session?.user ? (
@@ -310,9 +299,9 @@ export function Sidebar() {
                   <Button
                     variant="ghost"
                     aria-label="Open profile menu"
-                    className="h-11 w-full justify-start gap-0 px-0 text-left font-normal md:h-[38px] md:px-0"
+                    className="size-11 justify-center gap-0 px-0 text-left font-normal md:h-[38px] md:w-full md:justify-start md:px-0"
                   >
-                    <span className="flex w-[38px] shrink-0 justify-center">
+                    <span className="flex shrink-0 items-center justify-center md:w-[38px]">
                       <span className="flex size-7 items-center justify-center rounded-md bg-muted text-xs font-medium text-foreground">
                         {session.user.name?.charAt(0).toUpperCase() || (
                           <User className="size-4" aria-hidden="true" />
@@ -321,7 +310,7 @@ export function Sidebar() {
                     </span>
                     <span
                       className={cn(
-                        "ml-1 min-w-0 flex-1 truncate text-[13px]",
+                        "ml-1 hidden min-w-0 flex-1 truncate text-[13px] md:block",
                         collapsed && "md:hidden",
                       )}
                     >
@@ -329,7 +318,7 @@ export function Sidebar() {
                     </span>
                     <CaretUpDown
                       className={cn(
-                        "mr-2 ml-2 size-3.5 text-muted-foreground",
+                        "mr-2 ml-2 hidden size-3.5 text-muted-foreground md:block",
                         collapsed && "md:hidden",
                       )}
                       aria-hidden="true"
@@ -340,6 +329,7 @@ export function Sidebar() {
                   side="top"
                   align="start"
                   sideOffset={10}
+                  collisionPadding={12}
                   className="w-56"
                 >
                   <DropdownMenuLabel className="px-3 py-2">
@@ -430,7 +420,11 @@ export function Sidebar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button asChild variant="ghost" className="w-full text-[13px]">
+              <Button
+                asChild
+                variant="ghost"
+                className="h-11 px-2 text-xs md:w-full md:text-[13px]"
+              >
                 <Link href="/login">Sign in</Link>
               </Button>
             )}
