@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
     agentFeedback: true,
   },
   cacheComponents: true,
+  images: {
+    remotePatterns: [new URL("https://i.ytimg.com/vi/*/mqdefault.jpg")],
+    maximumRedirects: 0,
+  },
   partialPrefetching: true,
   turbopack: {
     rules: {

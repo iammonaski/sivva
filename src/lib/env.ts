@@ -17,6 +17,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
   GEMINI_MODEL: z.string().regex(/^gemini-[a-z0-9.-]+$/, "GEMINI_MODEL must be a Gemini model ID").default("gemini-3.5-flash-lite"),
+  YOUTUBE_API_KEY: z.string().trim().min(1).optional(),
+  OPENALEX_API_KEY: z.string().trim().min(1).optional(),
   CLOUDINARY_CLOUD_NAME: z.string().min(1, "CLOUDINARY_CLOUD_NAME is required"),
   CLOUDINARY_API_KEY: z.string().min(1, "CLOUDINARY_API_KEY is required"),
   CLOUDINARY_API_SECRET: z.string().min(1, "CLOUDINARY_API_SECRET is required"),

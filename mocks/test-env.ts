@@ -13,6 +13,8 @@ vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
 vi.stubEnv("GOOGLE_CLIENT_ID", "test_google_client_id");
 vi.stubEnv("GOOGLE_CLIENT_SECRET", "test_google_client_secret");
 vi.stubEnv("GEMINI_API_KEY", "test_gemini_key");
+vi.stubEnv("YOUTUBE_API_KEY", "test_youtube_key");
+vi.stubEnv("OPENALEX_API_KEY", undefined);
 vi.stubEnv("CLOUDINARY_CLOUD_NAME", "test-cloud");
 vi.stubEnv("CLOUDINARY_API_KEY", "test-key");
 vi.stubEnv("CLOUDINARY_API_SECRET", "test-secret");
