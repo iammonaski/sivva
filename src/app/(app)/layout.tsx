@@ -14,7 +14,11 @@ export default function AppLayout({
         <Sidebar />
       </React.Suspense>
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 outline-none md:overflow-y-auto">
-        <div className="mx-auto max-w-6xl py-4 md:px-8 md:py-8 lg:px-12">{children}</div>
+        <div className="mx-auto max-w-6xl py-4 md:px-8 md:py-8 lg:px-12">
+          <div className="rounded-xl border border-border bg-surface p-4 sm:p-6 md:-mx-6 md:-my-8 md:min-h-[calc(100dvh-1rem)] lg:-mx-10 lg:p-8">
+            {children}
+          </div>
+        </div>
       </main>
     </div>
   );

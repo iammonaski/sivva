@@ -75,7 +75,7 @@ export default function DashboardPage() {
   const otherMaterials = matchingMaterials.slice(1);
 
   return (
-    <div className="space-y-8 rounded-xl border border-border bg-surface p-4 sm:p-6 md:-mx-6 md:-my-8 md:min-h-[calc(100dvh-1rem)] md:pt-0 lg:-mx-10 lg:p-8 lg:pt-0">
+    <div className="space-y-8 md:-mt-6 lg:-mt-8">
       <DashboardNavbar search={search} onSearchChange={setSearch} />
 
       <div className="space-y-8">
