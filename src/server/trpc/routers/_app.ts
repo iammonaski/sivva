@@ -3,6 +3,7 @@ import { dashboardRouter } from "./dashboard.router";
 import { materialRouter } from "./material.router";
 import { analysisRouter } from "./analysis.router";
 import { tutorRouter } from "./tutor-router";
+import { resourcesRouter } from "./resources-router";
 
 export const appRouter = createTRPCRouter({
   health: publicProcedure.query(() => {
@@ -15,6 +16,7 @@ export const appRouter = createTRPCRouter({
   material: materialRouter,
   analysis: analysisRouter,
   tutor: tutorRouter,
+  resources: resourcesRouter,
 });
 
 export type AppRouter = typeof appRouter;

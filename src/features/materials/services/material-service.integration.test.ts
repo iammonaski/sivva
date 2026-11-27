@@ -1,3 +1,4 @@
+import { storage } from "../../../../mocks/storage";
 import { transport } from "../../../../mocks/transport";
 import { tutorProvider, resetTutorProvider } from "../../../../mocks/gemini-tutor";
 import { createTutorAnswer } from "../../../../mocks/tutor-fixtures";
@@ -14,8 +15,10 @@ import { createCallerContext } from "../../../../mocks/trpc-context";
 import { analyzeDocument, getOverview, getStudyGuide, getTopics } from "@/features/analysis/services/analysis-service";
 import { AnalysisError } from "@/features/analysis/analysis-error";
 import { analysisRouter } from "@/server/trpc/routers/analysis.router";
+import { appRouter } from "@/server/trpc/routers/_app";
+import { mockYouTubeResponse, youtubeFetch } from "../../../../mocks/youtube";
+import { mockOpenAlexResponse, openAlexFetch } from "../../../../mocks/openalex";
 import { getDashboardStats } from "@/features/dashboard/services/dashboard.service";
-import { storage } from "../../../../mocks/storage";
 import { POST } from "@/app/api/materials/upload/route";
 import { GET } from "@/app/api/materials/[materialId]/file/route";
 import { testAdminUrl, testDatabaseName } from "../../../../mocks/test-env";
@@ -419,6 +422,71 @@ describe("ownership-protected analysis tRPC endpoints", () => {
     const caller = analysisRouter.createCaller(createCallerContext(owner));
     await expect(caller.getOverview({ id: "" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(caller.getTopics({ id: "x".repeat(201) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
+describe("topic resources tRPC endpoint", () => {
+  it("finds videos for an owned, ready topic without sending the summary", async () => {
+    const { materialId } = await readyTutorMaterial();
+    const [topic] = await getTopics({ id: materialId, userId: owner });
+    const caller = appRouter.createCaller(createCallerContext(owner));
+    mockYouTubeResponse();
+    try {
+      const videos = await caller.resources.findVideos({ materialId, topicId: topic.id });
+      expect(videos).toHaveLength(1);
+      expect(videos[0].reason).toContain(topic.title);
+      expect(youtubeFetch).toHaveBeenCalledTimes(1);
+      const [request] = youtubeFetch.mock.calls[0];
+      expect(new URL(String(request)).searchParams.get("q")).toBe(`${topic.title} tutorial`);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not contact YouTube for unauthorized, mismatched, or unready topics", async () => {
+    const { materialId } = await readyTutorMaterial();
+    const [topic] = await getTopics({ id: materialId, userId: owner });
+    const second = await readyTutorMaterial();
+    const findVideos = (userId: string | null) => appRouter.createCaller(createCallerContext(userId)).resources.findVideos;
+    const input = { materialId, topicId: topic.id };
+    mockYouTubeResponse();
+    try {
+      await expect(findVideos(null)(input)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+      await expect(findVideos(other)(input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(findVideos(owner)({ ...input, materialId: second.materialId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(findVideos(owner)({ ...input, topicId: "invalid" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      await db.update(materials).set({ status: "analyzing" }).where(eq(materials.id, materialId));
+      await expect(findVideos(owner)(input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(youtubeFetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("searches OpenAlex only for the requested topic on an owned, ready material", async () => {
+    const { materialId } = await readyTutorMaterial();
+    const [topic] = await getTopics({ id: materialId, userId: owner });
+    const otherMaterial = await readyTutorMaterial();
+    const findPapers = (userId: string | null) => appRouter.createCaller(createCallerContext(userId)).resources.findPapers;
+    const input = { materialId, topicId: topic.id };
+    mockOpenAlexResponse();
+    try {
+      await expect(findPapers(null)(input)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+      await expect(findPapers(other)(input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(findPapers(owner)({ ...input, materialId: otherMaterial.materialId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(findPapers(owner)({ ...input, topicId: "invalid" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      expect(openAlexFetch).not.toHaveBeenCalled();
+      await expect(findPapers(owner)(input)).resolves.toEqual([expect.objectContaining({ reason: `The title mentions “${topic.title}”.` })]);
+      expect(openAlexFetch).toHaveBeenCalledTimes(1);
+      const url = new URL(String(openAlexFetch.mock.calls[0][0]));
+      expect(url.searchParams.get("search")).toBe(topic.title);
+      expect(url.search).not.toContain(encodeURIComponent(topic.summary));
+      await db.update(materials).set({ status: "analyzing" }).where(eq(materials.id, materialId));
+      await expect(findPapers(owner)(input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(openAlexFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
