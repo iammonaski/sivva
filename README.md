@@ -194,20 +194,28 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
+### Try the Resources tab
+
+Enable **YouTube Data API v3** in Google Cloud and add a server-only `YOUTUBE_API_KEY` to `.env` (or to the deployment environment). Restrict the key to YouTube Data API v3. Leave the variable unset if you don’t want to enable search; the rest of the app still works.
+
+In a ready material, open **Resources**, choose a topic, then select **Find lessons** for YouTube videos or **Find papers** for open-access articles and reviews from [OpenAlex](https://openalex.org/). OpenAlex paper search works without a key. For a higher quota, add an activated, server-only `OPENALEX_API_KEY` to `.env` or the deployment environment.
+
+Each search sends the topic title to the selected provider without the file, summary, or account details. Sivva returns up to five matches per provider and explains which topic terms appeared in each result’s metadata. These are external suggestions, not tutor sources or endorsements. Both providers have search limits.
+
 ## Roadmap
 
-- [ ] **Phase 1: Upload & Understand**
+- [x] **Phase 1: Upload & Understand**
   - [x] Next.js foundation, design system, and responsive shell
   - [x] PostgreSQL, Drizzle schema, migrations, and Better Auth
   - [x] Private Cloudinary upload pipeline with server-side validation
   - [x] Text and heading extraction for PDF and DOCX
   - [x] Structured Gemini analysis (overviews, topics, glossary, key concepts)
-  - [x] Grounded Q&A backend with streaming and source citations ([API contract](docs/tutor-streaming-api.md); Ask UI is next)
-  - [ ] Full tabbed study workspace
+  - [x] Grounded Q&A with streaming, source citations, and saved chat history ([API contract](docs/tutor-streaming-api.md))
+  - [x] Full tabbed study workspace
 - [ ] **Phase 2: Related Resources**
-  - [ ] Curated external learning resources (YouTube lessons, articles, documentation)
-  - [ ] Academic paper discovery via scholarly metadata
-  - [ ] Contextual relevance explanations
+  - [x] Topic-specific YouTube lessons with match explanations
+  - [ ] Relevant articles, documentation, and open textbooks
+  - [x] Topic-specific open-access papers from OpenAlex
 - [ ] **Phase 3: Practice & Revision**
   - [ ] Topic-based quiz generation
   - [ ] Concept flashcards with spaced repetition
