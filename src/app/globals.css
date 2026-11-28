@@ -119,3 +119,10 @@ body {
     transform: translateY(0);
   }
 }
+
+/* A tablet's wide viewport doesn't make its touch targets desktop-sized. */
+@media (pointer: coarse), (min-width: 48rem) and (max-width: 63.999rem) {
+  [data-slot="button"], [data-slot="input"] { min-height: 44px; }
+  [data-slot="button"][data-size^="icon"] { min-width: 44px; }
+  [data-slot="input"] { font-size: 1rem; }
+}

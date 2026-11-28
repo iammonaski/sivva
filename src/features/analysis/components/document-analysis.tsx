@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { BookOpen, ChatCircleText, FileText, ListBullets, Video } from "@phosphor-icons/react";
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { BookmarkSimple, BookOpen, ChatCircleText, FileText, ListBullets, Video, WarningCircle } from "@phosphor-icons/react";
 import { TopicResources } from "@/features/resources/components/topic-resources";
 import { trpc } from "@/lib/trpc/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,15 +20,30 @@ const tabs = [
 ] as const;
 type StudyTab = (typeof tabs)[number]["value"];
 
-export function DocumentAnalysis({ materialId }: { materialId: string }) {
-  const [tab, setTab] = useState<StudyTab>("overview");
+export function DocumentAnalysis({ materialId, savedTopic, savingTopic, failedTopic, onRetryPosition }: {
+  materialId: string; savedTopic: string | null; savingTopic: string | null; failedTopic: string | null; onRetryPosition: () => void;
+}) {
+  const params = useSearchParams();
+  const tab: StudyTab = tabs.find((item) => item.value === params.get("tab"))?.value ?? "overview";
+  const selectedTopic = params.get("topic");
   const guide = trpc.analysis.getStudyGuide.useQuery({ id: materialId });
   const topics = trpc.analysis.getTopics.useQuery({ id: materialId });
+  useEffect(() => {
+    if (tab !== "topics" || !selectedTopic || !topics.data?.some((topic) => topic.id === selectedTopic)) return;
+    const heading = document.getElementById(`topic-${selectedTopic}`);
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ block: "center" });
+  }, [selectedTopic, tab, topics.data]);
+  const previousTopicTitle = topics.data?.find((item) => item.id === savedTopic)?.title;
   const activeQuery = tab === "topics" || tab === "resources" ? topics : guide;
   const { isLoading: loading, error } = activeQuery;
 
   return <Tabs value={tab} onValueChange={(value) => {
-    if (tabs.some((item) => item.value === value)) setTab(value as StudyTab);
+    if (!tabs.some((item) => item.value === value)) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", value);
+    url.searchParams.delete("topic");
+    window.history.replaceState(null, "", url);
   }}>
     <TabsList variant="line" aria-label="Study workspace" className="w-full flex-wrap justify-start border-b border-border group-data-[orientation=horizontal]/tabs:h-auto">
       {tabs.map((item) => <TabsTrigger key={item.value} value={item.value} className="min-h-11 flex-none px-3 md:min-h-9 md:px-4">{item.icon}{item.label}</TabsTrigger>)}
@@ -46,7 +62,21 @@ export function DocumentAnalysis({ materialId }: { materialId: string }) {
         <h2 className="text-xl font-medium">Topic outline</h2><p className="mt-1 text-sm text-muted-foreground">Follow the topics in the order they appear in your notes.</p>
         {topics.data?.length ? <ol className="mt-5 divide-y divide-border rounded-xl border border-border bg-surface">{topics.data.map((topic, index) => <li key={topic.id} className="flex gap-4 p-5 sm:p-6">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent text-sm font-medium text-primary">{index + 1}</span>
-          <div className="min-w-0"><h3 className="mb-2 text-lg font-medium">{topic.title}</h3><StudyText text={topic.summary} /></div>
+          <div className="min-w-0"><h3 id={`topic-${topic.id}`} tabIndex={-1} className="mb-2 scroll-mt-20 rounded-sm text-lg font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">{topic.title}</h3><StudyText text={topic.summary} />
+            {savedTopic === topic.id ? <p role="status" className="mt-3 flex items-center gap-1.5 text-xs font-medium text-primary"><BookmarkSimple weight="fill" aria-hidden="true" />Your resume point</p>
+            : failedTopic === topic.id ? <div className="mt-3 rounded-lg border border-destructive/35 bg-destructive/5 p-3">
+              <div role="alert" className="flex items-start gap-2"><WarningCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-destructive" />
+                <div className="min-w-0 text-sm"><p className="font-medium">This resume point couldn’t be saved.</p>
+                  {previousTopicTitle && <p className="mt-1 break-words text-muted-foreground">Your saved place is still “{previousTopicTitle}”.</p>}
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="mt-2" onClick={onRetryPosition}>Retry save</Button>
+            </div>
+            : savingTopic === topic.id ? <Skeleton role="status" aria-label="Saving resume point" className="mt-3 h-5 w-32" />
+            : <Button size="sm" variant="ghost" className="mt-2 text-primary" aria-label={`Resume here next time: ${topic.title}`} onClick={() => {
+              const url = new URL(window.location.href); url.searchParams.set("topic", topic.id); window.history.replaceState(null, "", url);
+            }}><BookmarkSimple aria-hidden="true" />Resume here next time</Button>}
+          </div>
         </li>)}</ol> : <p className="mt-4 text-sm text-muted-foreground">No topics were found in this document.</p>}
       </section> : <section className="space-y-8">
         <div><h2 className="text-xl font-medium">Key concepts</h2><p className="mt-1 text-sm text-muted-foreground">The ideas and definitions to revisit while you study.</p>

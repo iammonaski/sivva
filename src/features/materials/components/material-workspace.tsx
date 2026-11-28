@@ -1,19 +1,35 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, DownloadSimple, Trash } from "@phosphor-icons/react";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DocumentAnalysis } from "@/features/analysis/components/document-analysis";
+import { UploadDocument } from "./upload-document";
+import { studyTabSchema } from "../schemas/material";
 import { MaterialStatus } from "./material-status";
 import { Badge } from "@/components/ui/badge";
 
 export function MaterialWorkspace({ materialId }: { materialId: string }) {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const [startedAfterProcessing, setStartedAfterProcessing] = useState(false);
   const material = trpc.material.getById.useQuery({ id: materialId });
+  const params = useSearchParams();
+  const tab = studyTabSchema.catch("overview").parse(params.get("tab"));
+  const requestedTopic = params.get("topic");
+  const topicId = tab === "topics" && requestedTopic && requestedTopic.length <= 200 ? requestedTopic : null;
+  const lastRecorded = useRef<string | null>(null);
+  const [confirmedTopic, setConfirmedTopic] = useState<string | null | undefined>(undefined);
+  const save = trpc.material.markOpened.useMutation({
+    retry: 1,
+    scope: { id: "record-study-position" },
+    onSuccess: (stored) => { setConfirmedTopic(stored.topicId); void utils.dashboard.getStats.invalidate(); },
+  });
+  const { mutate: markOpened } = save;
   const status = trpc.material.getStatus.useQuery(
     { id: materialId },
     {
@@ -25,6 +41,20 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
           : false,
     },
   );
+  const currentStatus = status.data?.status ?? material.data?.status;
+  const [enteredReady, setEnteredReady] = useState<boolean | null>(null);
+  const initialStatus = material.data?.status;
+  useEffect(() => {
+    if (enteredReady === null && initialStatus) setEnteredReady(initialStatus === "ready");
+  }, [enteredReady, initialStatus]);
+  const openedId = currentStatus === "ready" ? material.data?.id : undefined;
+  useEffect(() => {
+    if (!openedId || (!enteredReady && !startedAfterProcessing)) return;
+    const position = JSON.stringify([openedId, tab, topicId]);
+    if (lastRecorded.current === position) return;
+    lastRecorded.current = position;
+    markOpened({ id: openedId, tab, topicId });
+  }, [openedId, markOpened, tab, topicId, enteredReady, startedAfterProcessing]);
   const deletion = trpc.material.delete.useMutation({
     onSuccess: () => {
       void utils.material.list.invalidate();
@@ -50,14 +80,17 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
         </Link>
       </div>
     );
-  const currentStatus = status.data?.status ?? material.data.status;
   const processing = ["pending", "processing", "extracted", "analyzing"].includes(
-    currentStatus,
+    currentStatus ?? "",
   );
   const error = status.data?.errorMessage ?? material.data.errorMessage;
 
+  const currentSave = save.variables?.id === materialId && save.variables.tab === tab && save.variables.topicId === topicId;
+  const retryPosition = () => markOpened({ id: materialId, tab, topicId });
+  const isHandoff = enteredReady === false && currentStatus === "ready" && !startedAfterProcessing;
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+      <span className="sr-only" role="status" aria-atomic="true">{isHandoff ? "Your lecture is ready to study." : ""}</span>
       <Link
         href="/library"
         className="inline-flex items-center gap-2 text-sm text-primary"
@@ -65,22 +98,22 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
         <ArrowLeft size={16} />
         Library
       </Link>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="break-words text-2xl font-semibold text-foreground sm:text-3xl">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-medium text-foreground sm:text-3xl">
             {material.data.title}
           </h1>
-          <p className="mt-2 break-words text-sm text-muted-foreground">{material.data.fileName}</p>
+          <p className="mt-1 line-clamp-2 break-all text-sm text-muted-foreground" title={material.data.fileName}>{material.data.fileName}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Badge>{material.data.fileType.toUpperCase()}</Badge>
-            <MaterialStatus status={currentStatus} />
+            <MaterialStatus status={currentStatus ?? material.data.status} />
             <span className="text-xs text-muted-foreground">{(material.data.fileSize / 1024 / 1024).toFixed(2)} MB · Uploaded {new Date(material.data.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <a
             href={`/api/materials/${encodeURIComponent(materialId)}/file`}
-            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-primary"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border sm:min-h-9 border-border px-3 py-2 text-sm text-primary"
           >
             <DownloadSimple size={16} />
             Original
@@ -102,6 +135,9 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
           </Button>
         </div>
       </div>
+      {currentSave && save.isError && (!topicId || tab !== "topics") && <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 p-3 text-sm">
+        Your study position couldn’t be saved.<Button size="sm" variant="outline" onClick={retryPosition}>Retry save</Button>
+      </div>}
       {(deletion.error || status.error) && (
         <p role="alert" className="text-sm text-destructive">
           {deletion.error?.message ?? status.error?.message}
@@ -115,7 +151,7 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
         >
           <h2 className="text-lg font-medium">Preparing your document</h2>
           <p className="text-sm text-muted-foreground">
-            {["extracted", "analyzing"].includes(currentStatus)
+            {["extracted", "analyzing"].includes(currentStatus ?? "")
               ? "Generating your overview, topics, and study guide."
               : "Extracting readable text and preserving source sections."}
           </p>
@@ -131,11 +167,17 @@ export function MaterialWorkspace({ materialId }: { materialId: string }) {
             Document processing failed
           </h2>
           <p className="mt-2 text-sm">
-            {error ?? "Please delete the document and upload again."}
+            {error ?? "Try another copy of the lecture notes."}
           </p>
+          <UploadDocument className="mt-4" label="Upload a replacement" variant="outline" />
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">The new copy opens in its own workspace. This document stays in your library.</p>
         </section>
       ) : currentStatus === "ready" ? (
-        <DocumentAnalysis key={materialId} materialId={materialId} />
+        isHandoff ? <section className="space-y-3 rounded-xl border border-primary/20 bg-accent/60 p-6">
+          <h2 className="text-xl font-medium">Your lecture is ready</h2>
+          <p className="text-sm text-foreground/80">Open the overview, explore topics, or ask a question about your notes.</p>
+          <Button onClick={() => setStartedAfterProcessing(true)}>Start studying</Button>
+        </section> : <DocumentAnalysis key={materialId} materialId={materialId} savedTopic={confirmedTopic === undefined ? material.data.lastTopicId : confirmedTopic} savingTopic={currentSave && save.isPending ? topicId : null} failedTopic={currentSave && save.isError ? topicId : null} onRetryPosition={retryPosition} />
       ) : null}
     </div>
   );

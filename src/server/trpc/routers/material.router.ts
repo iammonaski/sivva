@@ -1,8 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter } from "../init";
 import { protectedProcedure } from "../middleware";
-import { listUserMaterials, getMaterialById, getMaterialStatus, deleteMaterial } from "@/features/materials/services/material.service";
-import { materialIdSchema } from "@/features/materials/schemas/material";
+import { listUserMaterials, markMaterialOpened, getMaterialById, getMaterialStatus, deleteMaterial } from "@/features/materials/services/material.service";
+import { materialIdSchema, studyPositionSchema } from "@/features/materials/schemas/material";
 import { MaterialError } from "@/features/materials/material-error";
 
 function mapMaterialError(error: unknown): never {
@@ -18,6 +18,10 @@ export const materialRouter = createTRPCRouter({
     const material = await getMaterialById({ id: input.id, userId: ctx.user.id });
     if (!material) throw new TRPCError({ code: "NOT_FOUND", message: "Material not found or access denied." });
     return material;
+  }),
+  markOpened: protectedProcedure.input(studyPositionSchema).mutation(async ({ ctx, input }) => {
+    try { return await markMaterialOpened({ ...input, userId: ctx.user.id }); }
+    catch (error) { mapMaterialError(error); }
   }),
   getStatus: protectedProcedure.input(materialIdSchema).query(async ({ ctx, input }) => {
     try { return await getMaterialStatus({ id: input.id, userId: ctx.user.id }); }

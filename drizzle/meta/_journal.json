@@ -8,6 +8,20 @@
       "when": 1795288447770,
       "tag": "0000_bright_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795880342046,
+      "tag": "0001_study_desk_resume",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795880991409,
+      "tag": "0002_study_position",
+      "breakpoints": true
     }
   ]
 }

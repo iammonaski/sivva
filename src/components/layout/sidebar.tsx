@@ -105,19 +105,19 @@ export function Sidebar() {
             aria-current={active ? "page" : undefined}
             aria-label={item.label}
             className={cn(
-              "relative flex size-11 shrink-0 items-center justify-center gap-2 rounded-md px-0 text-[13px] leading-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:h-[38px] md:w-full md:justify-start md:gap-0",
+              "relative flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 lg:px-0 text-[13px] leading-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring lg:h-[38px] lg:w-full lg:justify-start lg:gap-0",
               active
                 ? "bg-accent font-medium text-accent-foreground"
                 : "font-normal text-muted-foreground hover:bg-muted/70 hover:text-foreground",
             )}
           >
-            <span className="flex shrink-0 items-center justify-center md:w-[38px]">
+            <span className="hidden shrink-0 items-center justify-center min-[400px]:flex lg:w-[38px]">
               <Icon size={18} weight="regular" aria-hidden="true" />
             </span>
             <span
               className={cn(
-                "hidden truncate md:inline md:pr-3",
-                collapsed && "md:hidden",
+                "truncate lg:pr-3",
+                collapsed && "lg:hidden",
               )}
             >
               {item.label}
@@ -128,7 +128,7 @@ export function Sidebar() {
           <TooltipContent
             side="right"
             sideOffset={10}
-            className="hidden md:block"
+            className="hidden lg:block"
           >
             {item.label}
           </TooltipContent>
@@ -143,17 +143,17 @@ export function Sidebar() {
         aria-label="Workspace sidebar"
         data-collapsed={collapsed}
         className={cn(
-          "relative z-10 flex shrink-0 flex-row items-center gap-2 rounded-xl border border-border bg-surface px-2 py-1.5 transition-[width] duration-200 ease-out motion-reduce:transition-none max-md:sticky max-md:top-2 max-md:z-30 md:h-full md:flex-col md:items-stretch md:gap-0 md:p-0",
-          collapsed ? "md:w-16" : "md:w-56",
+          "relative z-10 flex shrink-0 flex-row items-center gap-1 sm:gap-2 rounded-xl border border-border bg-surface px-2 py-1.5 transition-[width] duration-200 ease-out motion-reduce:transition-none max-lg:sticky max-lg:top-2 max-lg:z-30 lg:h-full lg:flex-col lg:items-stretch lg:gap-0 lg:p-0",
+          collapsed ? "lg:w-16" : "lg:w-56",
         )}
       >
-        <div className="relative flex h-11 shrink-0 items-center px-1 md:h-[72px] md:px-3">
+        <div className="relative flex h-11 shrink-0 items-center px-1 lg:h-[72px] lg:px-3">
           <Link
             href="/dashboard"
             aria-label="Sivva dashboard"
             className={cn(
               "flex min-w-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              collapsed && "md:invisible",
+              collapsed && "lg:invisible",
             )}
           >
             <span className="flex w-[38px] shrink-0 items-center justify-center">
@@ -162,7 +162,7 @@ export function Sidebar() {
             <span
               className={cn(
                 "ml-1 text-base font-medium tracking-tight",
-                collapsed && "md:hidden",
+                collapsed && "lg:hidden",
               )}
             >
               Sivva
@@ -174,7 +174,7 @@ export function Sidebar() {
                 variant="ghost"
                 size="icon-sm"
                 className={cn(
-                  "absolute top-5 hidden size-8 text-muted-foreground md:inline-flex md:size-8",
+                  "absolute top-5 hidden size-8 text-muted-foreground lg:inline-flex lg:size-8",
                   collapsed ? "left-[15px]" : "right-3",
                 )}
                 aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -193,14 +193,14 @@ export function Sidebar() {
 
         <div
           aria-hidden="true"
-          className="mx-3 mb-3 hidden border-t border-border/70 md:block"
+          className="mx-3 mb-3 hidden border-t border-border/70 lg:block"
         />
 
-        <div className="ml-auto min-w-0 md:ml-0 md:min-h-0 md:flex-1 md:px-3 md:pb-3 md:overflow-y-auto">
+        <div className="ml-auto min-w-0 lg:ml-0 lg:min-h-0 lg:flex-1 lg:px-3 lg:pb-3 lg:overflow-y-auto">
           <nav
             id="workspace-navigation"
             aria-label="Main navigation"
-            className="flex items-center gap-1 md:block md:space-y-1"
+            className="flex items-center gap-1 lg:block lg:space-y-1"
           >
             {WORKSPACE_ITEMS.map(navigationItem)}
           </nav>
@@ -208,7 +208,7 @@ export function Sidebar() {
           {!collapsed && (isPending || session?.user) && (
             <section
               aria-labelledby="recent-documents-heading"
-              className="mt-7 hidden md:block"
+              className="mt-7 hidden lg:block"
             >
               <h2
                 id="recent-documents-heading"
@@ -233,7 +233,7 @@ export function Sidebar() {
                   <Button
                     variant="link"
                     size="sm"
-                    className="px-0 md:px-0"
+                    className="px-0 lg:px-0"
                     onClick={() => void recentDocuments.refetch()}
                   >
                     Try again
@@ -268,21 +268,21 @@ export function Sidebar() {
           )}
         </div>
 
-        <div className="shrink-0 md:px-3 md:pb-3">
-          <div className="md:border-t md:border-border md:pt-3">
+        <div className="shrink-0 lg:px-3 lg:pb-3">
+          <div className="lg:border-t lg:border-border lg:pt-3">
             {isPending ? (
               <div
                 aria-busy="true"
                 aria-label="Fetching your profile"
-                className="flex h-11 items-center md:h-[38px]"
+                className="flex h-11 items-center lg:h-[38px]"
               >
-                <span className="flex w-11 shrink-0 justify-center md:w-[38px]">
+                <span className="flex w-11 shrink-0 justify-center lg:w-[38px]">
                   <Skeleton className="size-7 rounded-md" />
                 </span>
                 <Skeleton
                   className={cn(
-                    "ml-2 hidden h-3 w-24 md:block",
-                    collapsed && "md:hidden",
+                    "ml-2 hidden h-3 w-24 lg:block",
+                    collapsed && "lg:hidden",
                   )}
                 />
               </div>
@@ -291,28 +291,26 @@ export function Sidebar() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    aria-label="Open profile menu"
-                    className="size-11 justify-center gap-0 px-0 text-left font-normal md:h-[38px] md:w-full md:justify-start md:px-0"
+                    aria-label={`${session.user.name || "Student"}, open profile menu`}
+                    className="size-11 justify-center gap-0 px-0 text-left font-normal lg:h-[38px] lg:w-full lg:justify-start lg:px-0"
                   >
-                    <span className="flex shrink-0 items-center justify-center md:w-[38px]">
-                      <span className="flex size-7 items-center justify-center rounded-md bg-muted text-xs font-medium text-foreground">
-                        {session.user.name?.charAt(0).toUpperCase() || (
-                          <User className="size-4" aria-hidden="true" />
-                        )}
+                    <span className="flex shrink-0 items-center justify-center lg:w-[38px]">
+                      <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-md bg-muted text-xs font-medium text-foreground">
+                        <User className="size-4" aria-hidden="true" />
                       </span>
                     </span>
                     <span
                       className={cn(
-                        "ml-1 hidden min-w-0 flex-1 truncate text-[13px] md:block",
-                        collapsed && "md:hidden",
+                        "ml-1 hidden min-w-0 flex-1 truncate text-[13px] lg:block",
+                        collapsed && "lg:hidden",
                       )}
                     >
                       {session.user.name || "Student"}
                     </span>
                     <CaretUpDown
                       className={cn(
-                        "mr-2 ml-2 hidden size-3.5 text-muted-foreground md:block",
-                        collapsed && "md:hidden",
+                        "mr-2 ml-2 hidden size-3.5 text-muted-foreground lg:block",
+                        collapsed && "lg:hidden",
                       )}
                       aria-hidden="true"
                     />
@@ -334,7 +332,7 @@ export function Sidebar() {
                     </span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="min-h-11 px-3 text-[13px] md:min-h-8">
+                  <DropdownMenuItem asChild className="min-h-11 px-3 text-[13px] lg:min-h-8">
                     <Link href="/settings" aria-current={pathname === "/settings" || pathname.startsWith("/settings/") ? "page" : undefined}>
                       <Gear className="size-4" aria-hidden="true" />Settings
                     </Link>
@@ -342,7 +340,7 @@ export function Sidebar() {
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger
                       disabled={!mounted || !theme}
-                      className="min-h-11 px-3 text-[13px] md:min-h-8"
+                      className="min-h-11 px-3 text-[13px] lg:min-h-8"
                     >
                       <Sun
                         className="size-4 text-muted-foreground"
@@ -368,7 +366,7 @@ export function Sidebar() {
                             <DropdownMenuRadioItem
                               key={value}
                               value={value}
-                              className="min-h-11 gap-1 pl-5 text-xs [&>span]:left-1 [&>span]:size-2 md:min-h-0 md:py-1"
+                              className="min-h-11 gap-1 pl-5 text-xs [&>span]:left-1 [&>span]:size-2 lg:min-h-0 lg:py-1"
                             >
                               <Icon
                                 className="size-3.5 text-muted-foreground"
@@ -384,7 +382,7 @@ export function Sidebar() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     disabled={signingOut}
-                    className="min-h-11 px-3 text-[13px] md:min-h-8"
+                    className="min-h-11 px-3 text-[13px] lg:min-h-8"
                     onSelect={(event) => {
                       event.preventDefault();
                       void handleSignOut();
@@ -416,7 +414,7 @@ export function Sidebar() {
               <Button
                 asChild
                 variant="ghost"
-                className="h-11 px-2 text-xs md:w-full md:text-[13px]"
+                className="h-11 px-2 text-xs lg:w-full lg:text-[13px]"
               >
                 <Link href="/login">Sign in</Link>
               </Button>
