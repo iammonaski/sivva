@@ -18,13 +18,13 @@ import { analysisRouter } from "@/server/trpc/routers/analysis.router";
 import { appRouter } from "@/server/trpc/routers/_app";
 import { mockYouTubeResponse, youtubeFetch } from "../../../../mocks/youtube";
 import { mockOpenAlexResponse, openAlexFetch } from "../../../../mocks/openalex";
-import { getDashboardStats } from "@/features/dashboard/services/dashboard.service";
+import { getDashboardStats, searchLectures } from "@/features/dashboard/services/dashboard.service";
 import { POST } from "@/app/api/materials/upload/route";
 import { GET } from "@/app/api/materials/[materialId]/file/route";
 import { testAdminUrl, testDatabaseName } from "../../../../mocks/test-env";
 import { createDocx, createPdf, createUploadFile } from "../../../../mocks/document-fixtures";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import pg from "pg";
 import { and, eq, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
@@ -42,8 +42,10 @@ beforeAll(async () => {
   await admin.connect();
   await admin.query(`CREATE DATABASE "${testDatabaseName}"`);
   databaseCreated = true;
-  const migration = await readFile(new URL("../../../../drizzle/0000_bright_loki.sql", import.meta.url), "utf8");
-  await pool.query(migration);
+  const migrations = new URL("../../../../drizzle/", import.meta.url);
+  for (const name of (await readdir(migrations)).filter((file) => file.endsWith(".sql")).sort()) {
+    await pool.query(await readFile(new URL(name, migrations), "utf8"));
+  }
   await db.insert(user).values([
     { id: owner, name: "Test owner", email: "owner@example.invalid" },
     { id: other, name: "Test other", email: "other@example.invalid" },
@@ -368,16 +370,43 @@ describe("AI analysis with real PostgreSQL", () => {
     expect(await db.select().from(studyGuides)).toEqual([]);
   });
 
-  it("only counts the requesting user's topics on the dashboard", async () => {
+  it("only shows the requesting user’s lecture and its real outline", async () => {
     const input = await extractedMaterial();
     await analyzeDocument(input);
     const created = await uploadPdf();
     await db.update(materials).set({ userId: other }).where(eq(materials.id, created.materialId));
     await processUpload(created, other);
     await analyzeDocument({ id: created.materialId, userId: other });
-    expect(await getDashboardStats({ userId: owner })).toMatchObject({ totalTopics: 2, totalStudyGuides: 1 });
-    expect(await getDashboardStats({ userId: other })).toMatchObject({ totalTopics: 2, totalStudyGuides: 1 });
-    expect(await getDashboardStats({ userId: "missing" })).toMatchObject({ totalTopics: 0, totalStudyGuides: 0 });
+    const first = await getDashboardStats({ userId: owner });
+    expect(first.totalMaterials).toBe(1);
+    expect(first.featured?.id).toBe(input.id);
+    expect(first.featured?.outline.map((topic) => topic.title)).toEqual(createAnalysis().topics.map((topic) => topic.title));
+    expect((await getDashboardStats({ userId: other })).featured?.id).toBe(created.materialId);
+    expect(await getDashboardStats({ userId: "missing" })).toMatchObject({ totalMaterials: 0, featured: null });
+  });
+
+  it("restores the last tab and only a topic belonging to that lecture", async () => {
+    const input = await extractedMaterial();
+    await analyzeDocument(input);
+    const [topic] = await getTopics(input);
+    const caller = appRouter.createCaller(createCallerContext(owner));
+    const newest = await uploadPdf();
+    expect((await getDashboardStats({ userId: owner })).featured?.id).toBe(input.id);
+    expect((await getDashboardStats({ userId: owner })).recentMaterials[0].id).toBe(newest.materialId);
+    await caller.material.markOpened({ id: input.id, tab: "topics", topicId: topic.id });
+    expect((await getDashboardStats({ userId: owner })).featured).toMatchObject({ lastStudyTab: "topics", lastTopicId: topic.id, resumeTopic: topic.title });
+    const second = await uploadPdf();
+    // Checking progress or an error isn't studying. Neither should replace the session.
+    for (const status of ["processing", "error"]) {
+      await db.update(materials).set({ status }).where(eq(materials.id, second.materialId));
+      await expect(caller.material.markOpened({ id: second.materialId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect((await getDashboardStats({ userId: owner })).featured?.id).toBe(input.id);
+    }
+    await db.update(materials).set({ status: "ready" }).where(eq(materials.id, second.materialId));
+    await caller.material.markOpened({ id: second.materialId, tab: "topics", topicId: topic.id });
+    expect((await getDashboardStats({ userId: owner })).featured).toMatchObject({ id: second.materialId, lastTopicId: null });
+    await caller.material.markOpened({ id: input.id, tab: "guide" });
+    expect((await getDashboardStats({ userId: owner })).featured).toMatchObject({ lastStudyTab: "guide", lastTopicId: null });
   });
 
   it("returns the newest five materials rather than the oldest", async () => {
@@ -390,7 +419,17 @@ describe("AI analysis with real PostgreSQL", () => {
     const stats = await getDashboardStats({ userId: owner });
     expect(stats.recentMaterials.map((material) => material.id)).toEqual(ids.slice(1).reverse());
     expect(stats.totalMaterials).toBe(6);
-    expect(stats.totalStudyGuides).toBe(0);
+    expect(stats.featured).toMatchObject({ id: ids[5], lastOpenedAt: null });
+    const caller = appRouter.createCaller(createCallerContext(owner));
+    await db.update(materials).set({ status: "ready" }).where(eq(materials.id, ids[0]));
+    await caller.material.markOpened({ id: ids[0] });
+    expect((await getDashboardStats({ userId: owner })).featured?.id).toBe(ids[0]);
+    await expect(appRouter.createCaller(createCallerContext(other)).material.markOpened({ id: ids[0] })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await db.update(materials).set({ fileName: "old_100%.pdf" }).where(eq(materials.id, ids[0]));
+    expect((await searchLectures({ userId: owner, query: "_100%" })).items.map((item) => item.id)).toEqual([ids[0]]);
+    expect((await searchLectures({ userId: other, query: "_100%" })).items).toEqual([]);
+    await db.delete(materials).where(eq(materials.id, ids[0]));
+    expect((await getDashboardStats({ userId: owner })).featured?.id).toBe(ids[5]);
   });
 });
 

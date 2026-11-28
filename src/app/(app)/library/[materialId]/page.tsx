@@ -4,7 +4,7 @@ import { MaterialWorkspace } from "@/features/materials/components/material-work
 
 async function Workspace({ params }: { params: Promise<{ materialId: string }> }) {
   const { materialId } = await params;
-  return <MaterialWorkspace materialId={materialId} />;
+  return <MaterialWorkspace key={materialId} materialId={materialId} />;
 }
 
 export default function MaterialPage({ params }: { params: Promise<{ materialId: string }> }) {

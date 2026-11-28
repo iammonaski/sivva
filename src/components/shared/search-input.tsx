@@ -11,6 +11,7 @@ export function SearchInput({
   onValueChange,
   placeholder,
   className,
+  maxLength,
 }: {
   id: string;
   label: string;
@@ -18,6 +19,7 @@ export function SearchInput({
   onValueChange: (value: string) => void;
   placeholder: string;
   className?: string;
+  maxLength?: number;
 }) {
   return (
     <div role="search" className={cn("relative min-w-0", className)}>
@@ -32,6 +34,7 @@ export function SearchInput({
       <Input
         id={id}
         type="search"
+        maxLength={maxLength}
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
         placeholder={placeholder}

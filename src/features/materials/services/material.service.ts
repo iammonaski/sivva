@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { materials } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { materials, topics } from "@/lib/db/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { deleteOriginal, getSignedOriginalUrl, uploadOriginal } from "@/lib/storage/cloudinary";
 import { MaterialError } from "../material-error";
 import { validateUpload } from "./upload-validation";
@@ -18,9 +18,22 @@ export async function listUserMaterials({ userId }: { userId: string }) {
 }
 
 export async function getMaterialById({ id, userId }: { id: string; userId: string }) {
-  const [material] = await db.select(materialMetadata).from(materials)
+  const [material] = await db.select({ ...materialMetadata, lastTopicId: materials.lastTopicId }).from(materials)
     .where(and(eq(materials.id, id), eq(materials.userId, userId))).limit(1);
   return material ?? null;
+}
+
+export async function markMaterialOpened({ id, userId, tab, topicId }: {
+  id: string; userId: string; tab: string; topicId: string | null;
+}) {
+  const ownedTopic = tab === "topics" && topicId ? db.select({ id: topics.id }).from(topics)
+    .where(and(eq(topics.id, topicId), eq(topics.materialId, id))).limit(1) : null;
+  const [updated] = await db.update(materials).set({ lastOpenedAt: sql`now()`, lastStudyTab: tab,
+    lastTopicId: ownedTopic ? sql`(${ownedTopic})` : null })
+    .where(and(eq(materials.id, id), eq(materials.userId, userId), eq(materials.status, "ready")))
+    .returning({ id: materials.id, topicId: materials.lastTopicId });
+  if (!updated) throw new MaterialError("NOT_FOUND", "Material not found or access denied.");
+  return updated;
 }
 
 export async function getMaterialStatus({ id, userId }: { id: string; userId: string }) {

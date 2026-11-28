@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { DownloadSimple, FolderSimple, ListBullets, SquaresFour } from "@phosphor-icons/react";
 import { trpc } from "@/lib/trpc/client";
@@ -13,8 +14,18 @@ import { UploadDocument } from "@/features/materials/components/upload-document"
 import { MaterialStatus } from "@/features/materials/components/material-status";
 
 export default function LibraryPage() {
+  return <Suspense fallback={<Skeleton className="h-48 w-full" />}><LibraryContent /></Suspense>;
+}
+
+function LibraryContent() {
+  const params = useSearchParams();
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [search, setSearch] = useState("");
+  const search = params.get("q") ?? "";
+  function setSearch(value: string) {
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set("q", value); else url.searchParams.delete("q");
+    window.history.replaceState(null, "", url);
+  }
   const query = trpc.material.list.useQuery(undefined, {
     refetchInterval: (result) => result.state.data?.some((material) => ["pending", "processing", "extracted", "analyzing"].includes(material.status)) ? 2000 : false,
   });

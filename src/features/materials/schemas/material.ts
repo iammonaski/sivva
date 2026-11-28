@@ -5,6 +5,10 @@ export const MAX_FILE_BYTES = 4 * 1024 * 1024;
 export const fileTypeSchema = z.enum(["pdf", "docx"]);
 export type MaterialFileType = z.infer<typeof fileTypeSchema>;
 export const materialIdSchema = z.object({ id: z.string().min(1).max(200) });
+export const studyTabSchema = z.enum(["overview", "topics", "guide", "ask", "resources"]);
+export const studyPositionSchema = materialIdSchema.extend({
+  tab: studyTabSchema.default("overview"), topicId: z.string().min(1).max(200).nullable().default(null),
+});
 export const uploadResponseSchema = z.object({
   materialId: z.string().min(1),
   status: z.literal("processing"),

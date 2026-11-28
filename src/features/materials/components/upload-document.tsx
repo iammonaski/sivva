@@ -1,22 +1,25 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { UploadSimple } from "@phosphor-icons/react";
+import { LockSimple, UploadSimple } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { MAX_FILE_BYTES, uploadErrorSchema, uploadResponseSchema } from "../schemas/material";
 
-export function UploadDocument({ className, dropzone = false }: { className?: string; dropzone?: boolean }) {
+export function UploadDocument({ className, label = "Upload document", variant = "default", showFileHint = false, illustration }: {
+  className?: string; label?: string; variant?: "default" | "outline"; showFileHint?: boolean; illustration?: ReactNode;
+}) {
+  const hint = useId();
   const input = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
   const router = useRouter();
   const utils = trpc.useUtils();
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null);
 
   async function upload(file: File) {
     if (busy.current) return;
@@ -50,35 +53,35 @@ export function UploadDocument({ className, dropzone = false }: { className?: st
     }
   }
 
-  return (
-    <div className={className}>
-      <input ref={input} type="file" className="hidden" aria-label="Choose a document"
-        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        disabled={uploading} onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void upload(file);
-        }} />
-      {dropzone ? <div
-        onDragOver={(event) => { event.preventDefault(); if (!uploading) setDragging(true); }}
-        onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
-        onDrop={(event) => {
-          event.preventDefault(); setDragging(false);
-          if (uploading) return;
-          if (event.dataTransfer.files.length !== 1) { setError("Drop one PDF or DOCX at a time."); return; }
-          void upload(event.dataTransfer.files[0]);
-        }}
-        className={cn("flex flex-col items-center gap-5 rounded-xl border border-dashed bg-surface px-5 py-8 text-center transition-colors", dragging ? "border-primary bg-accent" : "border-input")}
-      >
-        <span className="flex size-11 items-center justify-center rounded-md bg-muted text-foreground"><UploadSimple size={23} weight="regular" aria-hidden="true" /></span>
-        <div><h3 className="text-sm font-medium">Drop your document here</h3><p className="mt-2 text-xs leading-5 text-muted-foreground">PDF or DOCX, up to 4 MB.</p></div>
-        <Button disabled={uploading} onClick={() => input.current?.click()}>Choose document</Button>
-      </div> : <Button className="gap-2" disabled={uploading} onClick={() => input.current?.click()}>
-        <UploadSimple size={16} weight="bold" aria-hidden="true" />Upload document
-      </Button>}
-      {uploading && <div role="status" aria-label="Document upload in progress" className="mt-3 space-y-2">
-        <Skeleton className="h-2 w-full" /><Skeleton className="h-2 w-3/4" />
-      </div>}
-      {error && <p role="alert" className="mt-2 max-w-sm text-sm text-destructive">{error}</p>}
-    </div>
-  );
+  const trigger = <Button type="button" variant={variant} disabled={uploading} aria-describedby={hint}
+    title={illustration ? undefined : "PDF or DOCX, up to 4 MB"} onClick={() => input.current?.click()}><UploadSimple aria-hidden="true" />{uploading ? "Uploading notes…" : label}</Button>;
+  const feedback = <>
+    <span role="status" className="sr-only">{uploading ? "Uploading your lecture notes." : ""}</span>
+    {uploading && <Skeleton className="mt-3 h-1.5 w-32 bg-primary/20" />}
+    {error && <p role="alert" className="mt-2 max-w-sm break-words text-sm font-medium text-foreground">{error}</p>}
+  </>;
+  return <div className={cn(showFileHint && "text-right", className)}>
+    <input ref={input} type="file" className="hidden" aria-label="Choose a document"
+      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} />
+    {illustration ? <section aria-labelledby="first-lecture" onDragOver={(event) => { event.preventDefault(); if (!uploading) setDragging(true); }}
+      onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+      onDrop={(event) => {
+        event.preventDefault(); setDragging(false);
+        if (uploading) return;
+        if (event.dataTransfer.files.length !== 1) { setError("Drop one PDF or DOCX at a time."); return; }
+        void upload(event.dataTransfer.files[0]);
+      }} className={cn("relative isolate overflow-hidden rounded-xl border border-primary/20 bg-accent/70 p-5 sm:p-8 lg:p-10", dragging && "ring-2 ring-inset ring-primary")}>
+      <div className="flex items-center justify-between gap-6">
+        <div className="min-w-0 max-w-lg">
+          <h2 id="first-lecture" className="text-2xl font-medium leading-tight tracking-tight sm:text-3xl">Start with your lecture notes</h2>
+          <p className="mt-3 max-w-sm text-sm leading-6 text-foreground/80 sm:text-base">Turn a lecture into a study guide, then ask questions with answers tied to your notes.</p>
+          <div className="mt-6">{trigger}{feedback}</div>
+          <p id={hint} className="mt-3 text-xs leading-5 text-foreground/75"><span className="hidden sm:inline">Or drop a file here. </span>PDF or DOCX, up to 4 MB.</p>
+        </div>
+        <div aria-hidden="true" className="hidden w-[28%] max-w-60 shrink-0 sm:block">{illustration}</div>
+      </div>
+    </section> : <>{trigger}<span id={hint} className={showFileHint ? "mt-1 block text-xs leading-4 text-muted-foreground" : "sr-only"}>PDF / DOCX · 4 MB max</span>{feedback}</>}
+    {illustration && <p className="mt-3 flex items-start gap-2 px-1 text-xs leading-5 text-muted-foreground"><LockSimple className="mt-0.5 size-4 shrink-0" aria-hidden="true" />Only you can access your uploaded notes.</p>}
+  </div>;
 }
